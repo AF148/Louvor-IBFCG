@@ -1,0 +1,85 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-title>
+      <span class="titulo-app">
+        <img src="assets/img/logo_IBFCG.png" alt="">
+        LOUVOR IBFCG
+      </span>
+    </ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="ion-padding">
+  <ion-header collapse="condense">
+    <ion-toolbar>
+      <ion-title size="large">
+        <span class="titulo-app titulo-app-grande">
+          <img src="assets/img/logo_IBFCG.png" alt="">
+          LOUVOR IBFCG
+        </span>
+      </ion-title>
+    </ion-toolbar>
+  </ion-header>
+
+  <!-- Versículo do dia -->
+  @if (versiculo.versiculo(); as v) {
+    <ion-card class="versiculo-card" color="light">
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="bookmark-outline" slot="start" color="primary"></ion-icon>
+          Versículo do dia
+        </ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <p class="versiculo-texto">"{{ v.text }}"</p>
+        <p class="versiculo-ref">{{ v.reference }}</p>
+        @if (v.translation?.name) {
+          <p class="versiculo-traducao">{{ v.translation.name }}</p>
+        }
+      </ion-card-content>
+    </ion-card>
+  } @else if (versiculo.carregando()) {
+    <div class="versiculo-carregando">
+      <ion-spinner name="dots"></ion-spinner>
+      <p>Carregando versículo do dia...</p>
+    </div>
+  } @else if (versiculo.erro(); as erro) {
+    <ion-card class="versiculo-erro" color="danger">
+      <ion-card-content>
+        <ion-icon name="alert-circle-outline" slot="start"></ion-icon>
+        {{ erro }}
+      </ion-card-content>
+    </ion-card>
+  }
+
+  <div class="boas-vindas">
+    <ion-icon name="musical-notes-outline" class="icone-grande"></ion-icon>
+    <h2>Bem-vindo ao Louvor IBFCG</h2>
+    <p>Gerencie repertório, escalas e equipe do ministério de louvor.</p>
+  </div>
+
+  <ion-grid>
+    <ion-row>
+      @for (card of cards(); track card.rota) {
+        <ion-col size="12" size-md="6" size-lg="4">
+          <ion-card [routerLink]="card.rota" class="card-menu" color="{{ card.cor }}">
+            <ion-card-header>
+              <ion-card-title>
+                <ion-icon [name]="card.icone" slot="start"></ion-icon>
+                {{ card.titulo }}
+              </ion-card-title>
+            </ion-card-header>
+            <ion-card-content>
+              {{ card.descricao }}
+            </ion-card-content>
+          </ion-card>
+        </ion-col>
+      }
+    </ion-row>
+  </ion-grid>
+
+  <div class="versao">
+    <p class="ion-text-wrap">Louvor IBFCG v1.0</p>
+  </div>
+</ion-content>
+<!-- Tela inicial: exibe o versículo do dia, boas-vindas e atalhos para os módulos. -->

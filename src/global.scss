@@ -1,0 +1,184 @@
+/*
+ * App Global CSS
+ * ----------------------------------------------------------------------------
+ * Put style rules here that you want to apply globally. These styles are for
+ * the entire app and not just one component. Additionally, this file can be
+ * used as an entry point to import other CSS/Sass files to be included in the
+ * output CSS.
+ * For more information on global stylesheets, visit the documentation:
+ * https://ionicframework.com/docs/layout/global-stylesheets
+ */
+
+/* Core CSS required for Ionic components to work properly */
+@import "@ionic/angular/css/core.css";
+
+/* Basic CSS for apps built with Ionic */
+@import "@ionic/angular/css/normalize.css";
+@import "@ionic/angular/css/structure.css";
+@import "@ionic/angular/css/typography.css";
+@import "@ionic/angular/css/display.css";
+
+/* Optional CSS utils that can be commented out */
+@import "@ionic/angular/css/padding.css";
+@import "@ionic/angular/css/float-elements.css";
+@import "@ionic/angular/css/text-alignment.css";
+@import "@ionic/angular/css/text-transformation.css";
+@import "@ionic/angular/css/flex-utils.css";
+
+/*
+ * Barra de título do mesmo tamanho dos botões flutuantes de menu (esquerda)
+ * e perfil (direita): 44px + 4px de topo = 48px. O padding dos dois lados
+ * reserva o espaço dos botões globais (só nas páginas; modais têm header
+ * próprio e continuam com a altura padrão).
+ */
+ion-router-outlet ion-header:not(.header-collapse-condense) ion-toolbar {
+  --min-height: 48px;
+  --padding-start: 8px;
+  --padding-end: 52px;
+}
+
+ion-router-outlet ion-header:not(.header-collapse-condense) ion-title {
+  padding-inline-start: 44px;
+}
+
+/* Menu próprio: cabeçalhos de país ficam como texto e nunca viram opções vazias. */
+ion-popover.versoes-api-popover {
+  --width: min(320px, calc(100vw - 24px));
+  --max-height: min(70vh, 560px);
+}
+
+ion-popover.versoes-api-popover::part(content) {
+  border-radius: 12px;
+}
+
+.versoes-api-lista { max-height: min(70vh, 560px); overflow-y: auto; padding: 6px 0; }
+.versoes-api-grupo { margin: 0; padding: 12px 16px 8px; background: #eee; color: #111; font-size: .92rem; font-weight: 700; }
+.versoes-api-opcao { display: block; width: 100%; min-height: 42px; padding: 8px 16px; border: 0; border-bottom: 1px solid #ddd; background: #fff; color: #111; text-align: left; font: inherit; }
+.versoes-api-opcao.selecionada { font-weight: 700; }
+.calendario {
+  padding: 8px 12px 24px;
+}
+
+.calendario-cabecalho,
+.calendario-detalhe-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.calendario-cabecalho h2 {
+  margin: 0;
+  text-transform: capitalize;
+  font-size: 1.1rem;
+}
+
+.calendario-grade {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.calendario-semana {
+  padding: 8px 0;
+  text-align: center;
+  color: var(--ion-color-medium);
+  font-size: .75rem;
+  font-weight: 600;
+}
+
+.calendario-dia {
+  min-height: 48px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ion-text-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font: inherit;
+}
+
+.calendario-dia.fora-mes { color: var(--ion-color-medium); opacity: .55; }
+.calendario-dia.hoje { border-color: var(--ion-color-primary); }
+.calendario-dia.selecionado { background: var(--ion-color-primary); color: var(--ion-color-primary-contrast); }
+.marcador-culto { min-width: 6px; height: 6px; border-radius: 50%; background: var(--ion-color-secondary); font-size: 0; }
+.calendario-dia.selecionado .marcador-culto { background: currentColor; }
+.calendario-dia-detalhe { margin-top: 20px; }
+.calendario-dia-detalhe h3 { font-size: 1rem; text-transform: capitalize; }
+.calendario-vazio { padding: 12px 4px; color: var(--ion-color-medium); }
+
+@media (max-width: 360px) {
+  .calendario-dia { min-height: 42px; }
+  .calendario-semana { font-size: .68rem; }
+}
+.planilha-preview-scroll {
+  max-width: 100%;
+  max-height: min(62vh, 720px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  border: 1px solid var(--ion-color-step-200, #d9d9d9);
+  border-radius: 8px;
+  margin: 16px 0;
+}
+.planilha-preview-scroll:active { cursor: grabbing; }
+.planilha-preview-scroll.planilha-editando { touch-action: pan-x pan-y; cursor: auto; }
+
+.planilha-preview {
+  width: 100%;
+  min-width: 1120px;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--ion-background-color, #fff);
+  font-size: .875rem;
+}
+
+.planilha-preview th,
+.planilha-preview td {
+  padding: 10px 12px;
+  border-right: 1px solid var(--ion-color-step-150, #e6e6e6);
+  border-bottom: 1px solid var(--ion-color-step-150, #e6e6e6);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.planilha-preview th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--ion-color-light, #f4f5f8);
+  color: var(--ion-color-dark, #222428);
+  font-weight: 600;
+}
+
+.planilha-preview td.numero-linha {
+  color: var(--ion-color-medium);
+  text-align: right;
+  background: var(--ion-color-light, #f4f5f8);
+}
+
+.planilha-preview tbody tr:nth-child(even) td:not(.numero-linha) {
+  background: var(--ion-color-step-50, #fafafa);
+}
+
+.planilha-preview tbody tr:last-child td { border-bottom: 0; }
+.planilha-preview th:last-child,
+.planilha-preview td:last-child { border-right: 0; }
+.planilha-preview td.acoes-planilha { min-width: 96px; padding: 4px; }
+.planilha-preview td .celula-editavel { min-width: 96px; --padding-start: 4px; --padding-end: 4px; }
+.planilha-preview th.coluna-ministracao,
+.planilha-preview td.coluna-ministracao { width: 112px; min-width: 112px; max-width: 112px; overflow: hidden; text-overflow: ellipsis; }
+.planilha-preview td.coluna-ministracao .celula-editavel { min-width: 0; width: 100%; }
+.planilha-aba { padding: 16px; }
+.planilha-aba-cabecalho { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.planilha-aba-cabecalho h2 { margin: 0 0 4px; font-size: 1.15rem; }
+.planilha-aba-cabecalho p { margin: 0; color: var(--ion-color-medium); font-size: .875rem; }
+.planilha-carregando { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 150px; color: var(--ion-color-medium); }
+
+@media (max-width: 520px) {
+  .planilha-aba-cabecalho { align-items: flex-start; flex-direction: column; }
+}

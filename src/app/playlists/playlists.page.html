@@ -1,0 +1,421 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-title>Playlists</ion-title>
+    <ion-buttons slot="end">
+      @if (podeEditar()) {
+        <ion-button fill="clear" (click)="abrirImportacao()" [disabled]="deepLink.importando()" aria-label="Importar do YouTube">
+          <ion-icon slot="icon-only" name="cloud-download-outline"></ion-icon>
+        </ion-button>
+        <ion-button fill="clear" (click)="abrirNova()" aria-label="Nova playlist">
+          <ion-icon slot="icon-only" name="add-outline"></ion-icon>
+        </ion-button>
+      }
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <ion-header collapse="condense">
+    <ion-toolbar>
+      <ion-title size="large">Playlists</ion-title>
+    </ion-toolbar>
+  </ion-header>
+
+  <div class="toolbar-acao">
+    @if (modoSelecaoPlaylists()) {
+      <ion-checkbox
+        [checked]="todasPlaylistsSelecionadas()"
+        (ionChange)="alternarTodasPlaylists($any($event.detail).checked)"
+        aria-label="Selecionar todas as playlists encontradas"
+        title="Selecionar todas"
+      ></ion-checkbox>
+    }
+    <ion-searchbar
+      [value]="busca()"
+      (ionInput)="busca.set($any($event.detail.value) ?? '')"
+      placeholder="Buscar playlist"
+      debounce="200"
+    ></ion-searchbar>
+    @if (podeEditar()) {
+      <ion-button fill="clear" [color]="modoSelecaoPlaylists() && playlistsSelecionadas().size ? 'danger' : 'medium'" (click)="acionarExclusaoPlaylists()" [attr.aria-label]="modoSelecaoPlaylists() && playlistsSelecionadas().size ? 'Excluir playlists selecionadas' : 'Selecionar playlists para excluir'">
+        <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+      </ion-button>
+      <ion-button fill="outline" size="small" (click)="abrirImportacao()" [disabled]="deepLink.importando()">
+        @if (deepLink.importando()) {
+          <ion-spinner slot="start" name="crescent"></ion-spinner>
+        } @else {
+          <ion-icon slot="start" name="logo-youtube"></ion-icon>
+        }
+        Importar do YouTube
+      </ion-button>
+    }
+  </div>
+
+  <!-- Resultado da importação do YouTube (sucesso ou erro) -->
+  @if (deepLink.mensagem(); as msg) {
+    <ion-note class="resultado-planilha" [color]="deepLink.mensagemErro() ? 'danger' : 'success'">
+      <span>{{ msg }}</span>
+      <ion-button fill="clear" size="small" (click)="limparMensagem()" aria-label="Fechar aviso">
+        <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+      </ion-button>
+    </ion-note>
+  }
+
+  <ion-list>
+    @for (p of playlists(); track p.id) {
+      <ion-item-sliding>
+        <ion-item button (click)="abrirDetalhe(p)">
+          @if (modoSelecaoPlaylists()) {
+            <ion-checkbox
+              slot="start"
+              [checked]="playlistsSelecionadas().has(p.id)"
+              (click)="$event.stopPropagation()"
+              (ionChange)="alternarSelecaoPlaylist(p.id, $any($event.detail).checked)"
+              [attr.aria-label]="'Selecionar ' + p.nome"
+            ></ion-checkbox>
+          }
+          @if (p.origem === 'youtube') {
+            <ion-icon slot="start" name="logo-youtube" color="danger"></ion-icon>
+          } @else {
+            <ion-icon slot="start" name="list-outline" color="primary"></ion-icon>
+          }
+          <ion-label>
+            <h3>{{ p.nome }}</h3>
+            @if (p.descricao) {
+              <p class="ion-text-wrap">{{ p.descricao }}</p>
+            }
+            <div class="sub-linha">
+              @if (p.origem === 'youtube') {
+                <ion-note>{{ videosDe(p).length }} música(s)</ion-note>
+              } @else {
+                <ion-note>{{ p.itens.length }} louvor(es)</ion-note>
+              }
+            </div>
+          </ion-label>
+          @if (p.origem === 'youtube') {
+            <ion-button slot="end" fill="clear" (click)="tocarYouTube(p); $event.stopPropagation()" aria-label="Tocar no app">
+              <ion-icon slot="icon-only" name="play-circle-outline"></ion-icon>
+            </ion-button>
+          }
+          @if (podeEditar()) {
+            <ion-button slot="end" fill="clear" (click)="abrirEditorConteudo(p); $event.stopPropagation()" aria-label="Editar conteúdo da playlist">
+              <ion-icon slot="icon-only" name="reorder-three-outline"></ion-icon>
+            </ion-button>
+            <ion-button slot="end" fill="clear" (click)="abrirEdicao(p); $event.stopPropagation()" aria-label="Editar nome da playlist">
+              <ion-icon slot="icon-only" name="create-outline"></ion-icon>
+            </ion-button>
+            <ion-button slot="end" fill="clear" color="danger" (click)="remover(p); $event.stopPropagation()" aria-label="Excluir playlist">
+              <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+            </ion-button>
+          }
+        </ion-item>
+        @if (podeEditar()) {
+        <ion-item-options side="end">
+          <ion-item-option (click)="abrirEdicao(p)">
+            <ion-icon slot="icon-only" name="create-outline"></ion-icon>
+          </ion-item-option>
+          <ion-item-option color="danger" (click)="remover(p)">
+            <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+          </ion-item-option>
+        </ion-item-options>
+        }
+      </ion-item-sliding>
+    } @empty {
+      <div class="vazio">
+        <ion-icon name="list-outline"></ion-icon>
+        <p>Nenhuma playlist criada.</p>
+        @if (podeEditar()) {
+          <ion-button (click)="abrirNova()">Criar primeira playlist</ion-button>
+          <ion-button fill="outline" (click)="abrirImportacao()">
+            <ion-icon slot="start" name="logo-youtube"></ion-icon>
+            Importar do YouTube
+          </ion-button>
+        }
+      </div>
+    }
+  </ion-list>
+</ion-content>
+
+<!-- Modal Nova/Editar Playlist (metadados) -->
+<ion-modal [isOpen]="modalAberto()" (didDismiss)="fechar()">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>{{ podeEditar() ? (emEdicao() ? 'Editar playlist' : 'Nova playlist') : 'Playlist' }}</ion-title>
+        <ion-buttons slot="end">
+          <ion-button fill="clear" (click)="fechar()">
+            <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content class="ion-padding">
+      <form #form="ngForm" (ngSubmit)="salvar()">
+        <ion-item>
+          <ion-label position="stacked">Título</ion-label>
+          <ion-input [(ngModel)]="rascunho().nome" name="nome" required placeholder="Nome da playlist"></ion-input>
+        </ion-item>
+
+        <ion-item>
+          <ion-label position="stacked">Descrição</ion-label>
+          <ion-textarea [(ngModel)]="rascunho().descricao" name="descricao" rows="3" placeholder="Opcional"></ion-textarea>
+        </ion-item>
+
+        <div class="rodape-modal">
+          @if (podeEditar()) {
+            <ion-button type="button" fill="outline" (click)="fechar()">Cancelar</ion-button>
+            <ion-button type="submit" [disabled]="!form.valid">Salvar</ion-button>
+          } @else {
+            <ion-note color="medium">Entre com seu e-mail para editar playlists.</ion-note>
+            <ion-button type="button" (click)="fechar()">Fechar</ion-button>
+          }
+        </div>
+      </form>
+    </ion-content>
+  </ng-template>
+</ion-modal>
+
+<!-- Editor de Itens da Playlist -->
+<ion-modal [isOpen]="editorAberto()" (didDismiss)="fecharEditor()">
+  <ng-template>
+    @if (playlistEditando(); as p) {
+      <ion-header>
+        <ion-toolbar>
+          <ion-title>{{ p.nome }}</ion-title>
+          <ion-buttons slot="start">
+            <ion-button fill="clear" (click)="fecharEditor()">
+              <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+            </ion-button>
+          </ion-buttons>
+          <ion-buttons slot="end">
+            @if (podeEditar()) {
+              <ion-button (click)="salvarPlaylist()" [disabled]="enviando()">
+                <ion-icon slot="start" name="save-outline"></ion-icon>
+                Salvar ordem
+              </ion-button>
+            }
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+
+      <ion-content class="ion-padding">
+        @if (podeEditar()) {
+          <div class="busca-louvores">
+            <ion-searchbar
+              placeholder="Buscar louvores para adicionar"
+              (ionInput)="busca.set($any($event.detail.value) ?? '')"
+              debounce="200"
+              [value]="busca()"
+            ></ion-searchbar>
+          </div>
+
+          <ion-list>
+            @for (l of louvoresDisponiveis(); track l.id) {
+              @if (!busca() || l.titulo.toLowerCase().includes(busca().toLowerCase())) {
+                @if (!p.itens.some(i => i.louvorId === l.id)) {
+                  <ion-item button (click)="adicionarLouvor(l)">
+                    <ion-icon slot="start" name="add-circle-outline" color="success"></ion-icon>
+                    <ion-label>
+                      <h3>{{ l.titulo }}</h3>
+                      <div class="sub-linha">
+                        @if (l.tom) { <ion-note>{{ l.tom }}</ion-note> }
+                        @if (l.bpm) { <ion-note>· {{ l.bpm }} bpm</ion-note> }
+                        @if (l.cifra) { <ion-note>· cifra</ion-note> }
+                        @if (l.midia) { <ion-note>· {{ l.midia.tipo }}</ion-note> }
+                      </div>
+                    </ion-label>
+                  </ion-item>
+                }
+              }
+            }
+          </ion-list>
+
+          <div class="divisoria">Louvor(es) na playlist (arraste para reordenar)</div>
+        } @else {
+          <div class="divisoria">Louvor(es) na playlist</div>
+        }
+
+        <ion-reorder-group [disabled]="!podeEditar()" (ionItemReorder)="reordenar($event)">
+          <ion-list>
+            @for (item of itensEditor; track item.louvorId; let i = $index) {
+              @if (getLouvorInfo(item); as l) {
+                <ion-item-sliding #sliding>
+                  <ion-item>
+                    <ion-reorder slot="start"></ion-reorder>
+                    <ion-icon
+                      slot="start"
+                      [name]="l.midia ? (l.midia.tipo === 'mp4' ? 'videocam-outline' : 'musical-notes-outline') : 'musical-notes-outline'"
+                      [color]="l.midia ? 'primary' : 'medium'"
+                    ></ion-icon>
+                    <ion-label>
+                      <div class="item-nome">
+                        <h3>{{ l.titulo }}</h3>
+                        @if (l.tom) { <ion-badge color="medium">{{ l.tom }}</ion-badge> }
+                      </div>
+                      <div class="sub-linha">
+                        @if (l.bpm) { <ion-note>{{ l.bpm }} bpm</ion-note> }
+                        @if (l.cifra) { <ion-note>· cifra</ion-note> }
+                        @if (l.midia) { <ion-note>· {{ l.midia.tipo }}</ion-note> }
+                      </div>
+                    </ion-label>
+                    @if (l.midia) {
+                      <ion-button slot="end" fill="clear" (click)="tocarItem(item); $event.stopPropagation()">
+                        <ion-icon slot="icon-only" name="play-circle-outline"></ion-icon>
+                      </ion-button>
+                    }
+                  </ion-item>
+                  <ion-item-options side="end" [hidden]="!podeEditar()">
+                    <ion-item-option color="danger" (click)="removerItem(i); sliding.close()">
+                      <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+                    </ion-item-option>
+                  </ion-item-options>
+                </ion-item-sliding>
+              }
+            } @empty {
+              <div class="vazio">
+                <ion-icon name="musical-notes-outline"></ion-icon>
+                <p>Playlist vazia. Adicione louvores acima.</p>
+              </div>
+            }
+          </ion-list>
+        </ion-reorder-group>
+      </ion-content>
+    }
+  </ng-template>
+</ion-modal>
+
+<!-- Confirmação exclusão playlist -->
+<ion-alert
+  [isOpen]="!!playlistExcluir()"
+  header="Excluir playlist"
+  message="Tem certeza que deseja excluir esta playlist?"
+  [buttons]="[
+    { text: 'Cancelar', role: 'cancel', handler: () => cancelarExclusao() },
+    { text: 'Excluir', role: 'destructive', handler: () => confirmarExclusao() }
+  ]"
+></ion-alert>
+
+<ion-alert
+  [isOpen]="confirmarExclusaoLote()"
+  header="Excluir playlists"
+  [message]="'Excluir ' + playlistsSelecionadas().size + ' playlist(s) selecionada(s)? Esta ação não pode ser desfeita.'"
+  [buttons]="[
+    { text: 'Cancelar', role: 'cancel', handler: () => confirmarExclusaoLote.set(false) },
+    { text: 'Excluir', role: 'destructive', handler: () => confirmarExclusaoPlaylists() }
+  ]"
+></ion-alert>
+
+<!-- Importar do YouTube: colar o link da playlist/vídeo -->
+<ion-alert
+  [isOpen]="importarAberto()"
+  header="Importar do YouTube"
+  message="Cole o link da playlist ou do vídeo. Se for vídeo de um CD, o app tenta trazer a playlist inteira."
+  [inputs]="campoLink"
+  [buttons]="botoesImportacao"
+  (didDismiss)="importarAberto.set(false)"
+></ion-alert>
+
+<!-- Vídeos de uma playlist importada do YouTube -->
+<ion-modal [isOpen]="videosAberto()" (didDismiss)="fecharVideos()">
+  <ng-template>
+    @if (playlistVideos(); as p) {
+      <ion-header>
+        <ion-toolbar>
+          <ion-buttons slot="start">
+            <ion-button fill="clear" (click)="fecharVideos()">
+              <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+            </ion-button>
+          </ion-buttons>
+          <ion-title>{{ p.nome }}</ion-title>
+          <ion-buttons slot="end">
+            <ion-button (click)="tocarYouTube(p, 0)">
+              <ion-icon slot="start" name="play-circle-outline"></ion-icon>
+              Tocar tudo
+            </ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+
+      <ion-content>
+        <ion-list>
+          @for (v of videosDe(p); track v.videoId; let i = $index) {
+            <ion-item button class="item-musica" (click)="tocarYouTube(p, i)">
+              <ion-thumbnail slot="start">
+                <img [src]="thumbnail(v.videoId)" [alt]="v.titulo" loading="lazy">
+              </ion-thumbnail>
+              <ion-label class="ion-text-wrap">
+                <h3>{{ v.titulo }}</h3>
+                <div class="sub-linha">
+                  @if (v.canal) { <ion-note>{{ v.canal }}</ion-note> }
+                  @if (v.duracaoSegundos) { <ion-note>· {{ duracao(v.duracaoSegundos) }}</ion-note> }
+                </div>
+              </ion-label>
+              <ion-icon slot="end" name="play-circle-outline" color="primary"></ion-icon>
+            </ion-item>
+          } @empty {
+            <div class="vazio">
+              <ion-icon name="logo-youtube"></ion-icon>
+              <p>Nenhum vídeo nesta playlist.</p>
+            </div>
+          }
+        </ion-list>
+      </ion-content>
+    }
+  </ng-template>
+</ion-modal>
+
+<!-- Player do YouTube (toca dentro do app) -->
+<ion-modal [isOpen]="editorVideosAberto()" (didDismiss)="fecharEditorVideos()">
+  <ng-template>
+    @if (playlistEditandoVideos(); as p) {
+      <ion-header>
+        <ion-toolbar>
+          <ion-buttons slot="start">
+            <ion-button fill="clear" (click)="fecharEditorVideos()" aria-label="Fechar editor">
+              <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+            </ion-button>
+          </ion-buttons>
+          <ion-title>Editar vídeos</ion-title>
+          <ion-buttons slot="end">
+            @if (podeEditar()) {
+              <ion-button (click)="salvarVideosYoutube()">
+                <ion-icon slot="start" name="save-outline"></ion-icon>Salvar
+              </ion-button>
+            }
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+      <ion-content class="ion-padding">
+        <p class="explicacao">{{ p.nome }} · arraste para reordenar ou remova vídeos da playlist.</p>
+        <ion-reorder-group [disabled]="!podeEditar()" (ionItemReorder)="reordenarVideos($event)">
+          <ion-list>
+            @for (video of videosDe(p); track video.videoId; let i = $index) {
+              <ion-item>
+                @if (podeEditar()) {
+                  <ion-reorder slot="start"></ion-reorder>
+                }
+                <ion-thumbnail slot="start"><img [src]="thumbnail(video.videoId)" [alt]="video.titulo"></ion-thumbnail>
+                <ion-label class="ion-text-wrap">
+                  <h3>{{ video.titulo }}</h3>
+                  @if (video.canal) { <ion-note>{{ video.canal }}</ion-note> }
+                </ion-label>
+                @if (podeEditar()) {
+                  <ion-button slot="end" fill="clear" color="danger" (click)="removerVideoYoutube(i)" aria-label="Remover vídeo">
+                    <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+                  </ion-button>
+                }
+              </ion-item>
+            } @empty {
+              <div class="vazio"><p>Esta playlist não tem vídeos.</p></div>
+            }
+          </ion-list>
+        </ion-reorder-group>
+      </ion-content>
+    }
+  </ng-template>
+</ion-modal>
+
+<!-- Player do YouTube (toca dentro do app) -->
+<app-youtube-player></app-youtube-player>
+<!-- Tela de playlists: lista coleções e abre os formulários de edição e reprodução. -->

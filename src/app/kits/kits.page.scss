@@ -1,0 +1,98 @@
+// Barra de busca + botão "Gravar kit" na mesma linha.
+.toolbar-acao {
+  ion-searchbar {
+    flex: 1;
+    min-width: 0;
+    padding-inline-start: 0;
+  }
+
+  ion-button {
+    flex-shrink: 0;
+    margin: 0;
+    white-space: nowrap;
+  }
+}
+
+// Texto explicativo exibido para quem não grava kits.
+.dica-kit {
+  margin: 12px 16px 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: #666;
+}
+
+// Cabeçalho do kit no modal: autor e data.
+.kit-meta {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+
+  ion-note {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+}
+
+// Separador de seções dentro do modal de gravação.
+.divisoria {
+  margin: 18px 0 6px;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #666;
+}
+
+// Bloco do gravador: botão, cronômetro e prévia.
+.gravador {
+  margin-top: 16px;
+}
+
+.gravador-status {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.gravador-tempo {
+  font-size: 1.6rem;
+  font-weight: 600;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.gravador-erro {
+  margin: 10px 0 0;
+  font-size: 0.85rem;
+  color: var(--ion-color-danger-shade);
+  text-align: center;
+}
+
+.gravador-previa {
+  margin-top: 12px;
+
+  audio {
+    display: block;
+    width: 100%;
+    margin-bottom: 8px;
+  }
+}
+
+.gravador-acoes {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.gravador-acoes ion-button {
+  margin: 0;
+}
+
+// Áudio de prévia compacto dentro da linha da faixa.
+.audio-rascunho {
+  width: 150px;
+  height: 36px;
+}

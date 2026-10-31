@@ -1,0 +1,370 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-title>Kit musical</ion-title>
+    @if (podeGravar()) {
+      <ion-buttons slot="end">
+        <ion-button fill="clear" (click)="abrirGravacao()" aria-label="Gravar kit">
+          <ion-icon slot="icon-only" name="add-outline"></ion-icon>
+        </ion-button>
+      </ion-buttons>
+    }
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <ion-header collapse="condense">
+    <ion-toolbar>
+      <ion-title size="large">Kit musical</ion-title>
+    </ion-toolbar>
+  </ion-header>
+
+  @if (!podeGravar()) {
+    <p class="dica-kit">
+      Kits gravados pela equipe de administração. Toque numa música para ouvir.
+    </p>
+  }
+
+  <div class="toolbar-acao">
+    <ion-searchbar
+      [value]="busca()"
+      (ionInput)="busca.set($any($event.detail.value) ?? '')"
+      placeholder="Buscar kit"
+      debounce="200"
+    ></ion-searchbar>
+    @if (podeGravar()) {
+      <ion-button fill="outline" size="small" (click)="abrirGravacao()">
+        <ion-icon slot="start" name="mic-outline"></ion-icon>
+        Gravar kit
+      </ion-button>
+    }
+  </div>
+
+  @if (aviso(); as msg) {
+    <ion-note class="resultado-planilha" [color]="avisoErro() ? 'danger' : 'success'">
+      <span>{{ msg }}</span>
+      <ion-button fill="clear" size="small" (click)="limparAviso()" aria-label="Fechar aviso">
+        <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+      </ion-button>
+    </ion-note>
+  }
+
+  <ion-list>
+    @for (kit of kits(); track kit.id) {
+      <ion-item-sliding>
+        <ion-item button (click)="abrirDetalhe(kit)">
+          <ion-icon slot="start" name="musical-notes-outline" color="primary"></ion-icon>
+          <ion-label>
+            <h3>{{ kit.titulo }}</h3>
+            @if (kit.descricao) {
+              <p class="ion-text-wrap">{{ kit.descricao }}</p>
+            }
+            <div class="sub-linha">
+              <ion-note>{{ faixasDe(kit).length }} faixa(s)</ion-note>
+              @if (kit.autorNome) {
+                <ion-note>· {{ kit.autorNome }}</ion-note>
+              }
+              <ion-note>· {{ dataCriacao(kit.criadoEm) }}</ion-note>
+            </div>
+          </ion-label>
+          @if (faixasDe(kit).length) {
+            <ion-button
+              slot="end"
+              fill="clear"
+              (click)="tocarKit(kit); $event.stopPropagation()"
+              aria-label="Tocar kit"
+            >
+              <ion-icon slot="icon-only" name="play-circle-outline"></ion-icon>
+            </ion-button>
+          }
+          @if (podeExcluir()) {
+            <ion-button
+              slot="end"
+              fill="clear"
+              color="danger"
+              (click)="pedirExclusao(kit); $event.stopPropagation()"
+              aria-label="Excluir kit"
+            >
+              <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+            </ion-button>
+          }
+        </ion-item>
+        <ion-item-options side="end">
+          @if (podeExcluir()) {
+            <ion-item-option color="danger" (click)="pedirExclusao(kit)">
+              <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+            </ion-item-option>
+          }
+        </ion-item-options>
+      </ion-item-sliding>
+    } @empty {
+      <div class="vazio">
+        <ion-icon name="musical-notes-outline"></ion-icon>
+        @if (podeGravar()) {
+          <p>Nenhum kit gravado ainda.</p>
+          <ion-button (click)="abrirGravacao()">
+            <ion-icon slot="start" name="mic-outline"></ion-icon>
+            Gravar primeiro kit
+          </ion-button>
+        } @else {
+          <p>Nenhum kit musical disponível ainda.</p>
+        }
+      </div>
+    }
+  </ion-list>
+</ion-content>
+
+<!-- Detalhe do kit: lista de faixas para ouvir -->
+<ion-modal [isOpen]="!!kitDetalhe()" (didDismiss)="fecharDetalhe()">
+  <ng-template>
+    @if (kitDetalhe(); as kit) {
+      <ion-header>
+        <ion-toolbar>
+          <ion-buttons slot="start">
+            <ion-button fill="clear" (click)="fecharDetalhe()" aria-label="Fechar">
+              <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+            </ion-button>
+          </ion-buttons>
+          <ion-title>{{ kit.titulo }}</ion-title>
+          @if (podeExcluir()) {
+            <ion-buttons slot="end">
+              <ion-button fill="clear" (click)="abrirGravacao(kit)" aria-label="Acrescentar faixa">
+                <ion-icon slot="icon-only" name="add-outline"></ion-icon>
+              </ion-button>
+              <ion-button fill="clear" color="danger" (click)="pedirExclusao(kit)" aria-label="Excluir kit">
+                <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+              </ion-button>
+            </ion-buttons>
+          }
+        </ion-toolbar>
+      </ion-header>
+
+      <ion-content class="ion-padding">
+        @if (kit.descricao) {
+          <p class="explicacao">{{ kit.descricao }}</p>
+        }
+        <div class="kit-meta">
+          <ion-note>
+            <ion-icon name="person-circle-outline"></ion-icon>
+            {{ kit.autorNome ?? 'Equipe' }}
+          </ion-note>
+          <ion-note>
+            <ion-icon name="timer-outline"></ion-icon>
+            {{ dataCriacao(kit.criadoEm) }}
+          </ion-note>
+        </div>
+
+        <ion-list>
+          @for (faixa of faixasDe(kit); track faixa.id; let i = $index) {
+            <ion-item-sliding>
+              <ion-item button (click)="tocarFaixa(kit, faixa)">
+                <ion-label class="ion-text-wrap">
+                  <div class="item-nome">
+                    <h3>{{ i + 1 }}. {{ faixa.titulo }}</h3>
+                  </div>
+                  <div class="sub-linha">
+                    @if (faixa.duracaoSegundos) {
+                      <ion-note>{{ formatarTempo(faixa.duracaoSegundos) }}</ion-note>
+                    }
+                  </div>
+                </ion-label>
+                <ion-icon
+                  slot="end"
+                  [name]="estaTocando(faixa) ? 'pause-circle-outline' : 'play-circle-outline'"
+                  [color]="estaTocando(faixa) ? 'primary' : 'medium'"
+                ></ion-icon>
+                @if (podeExcluir()) {
+                  <ion-button
+                    slot="end"
+                    fill="clear"
+                    color="danger"
+                    (click)="pedirExclusaoFaixa(faixa); $event.stopPropagation()"
+                    aria-label="Excluir faixa"
+                  >
+                    <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+                  </ion-button>
+                }
+              </ion-item>
+              <ion-item-options side="end">
+                @if (podeExcluir()) {
+                  <ion-item-option color="danger" (click)="pedirExclusaoFaixa(faixa)">
+                    <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+                  </ion-item-option>
+                }
+              </ion-item-options>
+            </ion-item-sliding>
+          } @empty {
+            <div class="vazio">
+              <ion-icon name="musical-notes-outline"></ion-icon>
+              <p>Este kit ainda não tem faixas.</p>
+              @if (podeExcluir()) {
+                <ion-button (click)="abrirGravacao(kit)">
+                  <ion-icon slot="start" name="mic-outline"></ion-icon>
+                  Gravar faixa
+                </ion-button>
+              }
+            </div>
+          }
+        </ion-list>
+      </ion-content>
+    }
+  </ng-template>
+</ion-modal>
+
+<!-- Gravação do kit -->
+<ion-modal [isOpen]="gravacaoAberta()" (didDismiss)="fecharGravacao()">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-buttons slot="start">
+          <ion-button fill="clear" (click)="fecharGravacao()" aria-label="Fechar">
+            <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+        <ion-title>
+          @if (kitAlvo(); as kit) {
+            Acrescentar em "{{ kit.titulo }}"
+          } @else {
+            Gravar kit musical
+          }
+        </ion-title>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content class="ion-padding">
+      @if (!kitAlvo()) {
+        <ion-item>
+          <ion-label position="stacked">Título do kit</ion-label>
+          <ion-input
+            [ngModel]="rascunho().titulo"
+            (ngModelChange)="rascunho.set({ ...rascunho(), titulo: $event })"
+            name="titulo"
+            placeholder="Ex.: Kit Culto de Domingo"
+          ></ion-input>
+        </ion-item>
+
+        <ion-item>
+          <ion-label position="stacked">Descrição (opcional)</ion-label>
+          <ion-textarea
+            [ngModel]="rascunho().descricao"
+            (ngModelChange)="rascunho.set({ ...rascunho(), descricao: $event })"
+            name="descricao"
+            rows="2"
+            placeholder="Ex.: Músicas do culto de 02/11"
+          ></ion-textarea>
+        </ion-item>
+      }
+
+      <div class="gravador">
+        @if (gravador.gravando()) {
+          <div class="gravador-status">
+            <span class="gravador-tempo">{{ formatarTempo(gravador.duracaoSegundos()) }}</span>
+            <ion-progress-bar [value]="gravador.nivel()"></ion-progress-bar>
+          </div>
+        }
+
+        @if (!ultimaGravacao()) {
+          <ion-button
+            class="botao-gravar"
+            expand="block"
+            [color]="gravador.gravando() ? 'danger' : 'primary'"
+            (click)="gravador.gravando() ? pararGravacao() : iniciarGravacao()"
+            [disabled]="enviando()"
+          >
+            <ion-icon slot="start" [name]="gravador.gravando() ? 'stop-outline' : 'mic-outline'"></ion-icon>
+            {{ gravador.gravando() ? 'Parar gravação' : 'Gravar música' }}
+          </ion-button>
+        }
+
+        @if (erroModal(); as erro) {
+          <p class="gravador-erro">{{ erro }}</p>
+        }
+
+        @if (ultimaGravacao()) {
+          <div class="gravador-previa">
+            <audio [src]="gravador.urlGravacao()" controls></audio>
+            <ion-item>
+              <ion-label position="stacked">Nome da música</ion-label>
+              <ion-input
+                [ngModel]="tituloFaixa()"
+                (ngModelChange)="tituloFaixa.set($event)"
+                name="tituloFaixa"
+                placeholder="Ex.: Ousado Amor"
+              ></ion-input>
+            </ion-item>
+            <div class="gravador-acoes">
+              <ion-button fill="outline" (click)="iniciarGravacao()">
+                <ion-icon slot="start" name="mic-outline"></ion-icon>
+                Regravar
+              </ion-button>
+              <ion-button (click)="adicionarFaixa()" [disabled]="!tituloFaixa().trim()">
+                <ion-icon slot="start" name="add-outline"></ion-icon>
+                Adicionar faixa
+              </ion-button>
+            </div>
+          </div>
+        }
+      </div>
+
+      @if (faixasRascunho().length) {
+        <div class="divisoria">Faixas deste kit</div>
+        <ion-list>
+          @for (faixa of faixasRascunho(); track faixa.id; let i = $index) {
+            <ion-item>
+              <ion-label class="ion-text-wrap">
+                <h3>{{ i + 1 }}. {{ faixa.titulo }}</h3>
+                <div class="sub-linha">
+                  <ion-note>{{ formatarTempo(faixa.duracao) }}</ion-note>
+                </div>
+              </ion-label>
+              <audio slot="end" class="audio-rascunho" [src]="faixa.previewUrl" controls></audio>
+              <ion-button
+                slot="end"
+                fill="clear"
+                color="danger"
+                (click)="removerFaixaRascunho(faixa.id)"
+                aria-label="Remover faixa"
+              >
+                <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+              </ion-button>
+            </ion-item>
+          }
+        </ion-list>
+      }
+
+      <div class="rodape-modal">
+        <ion-button fill="outline" (click)="fecharGravacao()" [disabled]="enviando()">Cancelar</ion-button>
+        <ion-button (click)="salvar()" [disabled]="!podeSalvar() || enviando()">
+          @if (enviando()) {
+            <ion-spinner name="crescent"></ion-spinner>
+          } @else {
+            <ion-icon slot="start" name="save-outline"></ion-icon>
+            Salvar kit
+          }
+        </ion-button>
+      </div>
+    </ion-content>
+  </ng-template>
+</ion-modal>
+
+<!-- Confirmação excluir kit -->
+<ion-alert
+  [isOpen]="!!kitExcluir()"
+  header="Excluir kit"
+  message="Excluir o kit e todas as faixas? Esta ação não pode ser desfeita."
+  [buttons]="[
+    { text: 'Cancelar', role: 'cancel', handler: () => cancelarExclusao() },
+    { text: 'Excluir', role: 'destructive', handler: () => confirmarExclusao() }
+  ]"
+></ion-alert>
+
+<!-- Confirmação excluir faixa -->
+<ion-alert
+  [isOpen]="!!faixaExcluir()"
+  header="Excluir faixa"
+  message="Excluir esta faixa do kit?"
+  [buttons]="[
+    { text: 'Cancelar', role: 'cancel', handler: () => cancelarExclusaoFaixa() },
+    { text: 'Excluir', role: 'destructive', handler: () => confirmarExclusaoFaixa() }
+  ]"
+></ion-alert>
+<!-- Tela de kits musicais: gravação pelos administradores e escuta pelos membros. -->

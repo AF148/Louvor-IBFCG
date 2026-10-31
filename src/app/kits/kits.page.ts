@@ -1,0 +1,352 @@
+import { Component, OnDestroy, inject, computed, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import {
+  IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton,
+  IonIcon, IonList, IonItem, IonLabel, IonNote, IonSearchbar,
+  IonModal, IonInput, IonTextarea, IonSpinner, IonAlert,
+  IonItemSliding, IonItemOptions, IonItemOption, IonProgressBar,
+} from '@ionic/angular';
+import { addIcons } from 'ionicons';
+import {
+  addOutline, trashOutline, saveOutline, closeOutline, micOutline,
+  stopOutline, playCircleOutline, pauseCircleOutline, musicalNotesOutline,
+  personCircleOutline, timerOutline,
+} from 'ionicons/icons';
+import { StoreService } from '../core/store.service';
+import { AuthService } from '../core/auth.service';
+import { AudioService, formatarTempo } from '../core/audio.service';
+import { GravadorService, blobParaArquivo } from '../core/gravador.service';
+import type { FaixaKit, KitMusical, Louvor } from '../core/models';
+
+/** Faixa gravada ainda não salva (rascunho do modal de gravação). */
+interface FaixaRascunho {
+  id: string;
+  titulo: string;
+  blob: Blob;
+  duracao: number;
+  previewUrl: string;
+}
+
+const FORM_VAZIO = { titulo: '', descricao: '' };
+
+/**
+ * Área de Kit musical: somente administradores (doc em `admins/{uid}`)
+ * gravam kits de músicas pelo microfone do aparelho e os outros
+ * membros ouvem pelo player global do app.
+ */
+@Component({
+  selector: 'app-kits',
+  standalone: true,
+  templateUrl: './kits.page.html',
+  styleUrls: ['../shared/pagina.scss', '../shared/modal.scss', './kits.page.scss'],
+  imports: [
+    FormsModule,
+    IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton,
+    IonIcon, IonList, IonItem, IonLabel, IonNote, IonSearchbar,
+    IonModal, IonInput, IonTextarea, IonSpinner, IonAlert,
+    IonItemSliding, IonItemOptions, IonItemOption, IonProgressBar,
+  ],
+})
+/** Lista kits musicais, grava novos faixas e controla a reprodução. */
+export class KitsPage implements OnDestroy {
+  readonly store = inject(StoreService);
+  readonly auth = inject(AuthService);
+  readonly audio = inject(AudioService);
+  readonly gravador = inject(GravadorService);
+
+  readonly busca = signal('');
+  readonly gravacaoAberta = signal(false);
+  readonly rascunho = signal({ ...FORM_VAZIO });
+  /** id do kit a que as faixas do rascunho serão acrescentadas (null = kit novo). */
+  readonly kitAlvoId = signal<string | null>(null);
+  readonly faixasRascunho = signal<FaixaRascunho[]>([]);
+  /** Blob da última gravação pronta, ainda não batizada como faixa. */
+  readonly ultimaGravacao = signal<Blob | null>(null);
+  readonly tituloFaixa = signal('');
+  readonly enviando = signal(false);
+  readonly erroModal = signal<string | null>(null);
+  readonly kitDetalheId = signal<string | null>(null);
+  readonly kitExcluir = signal<KitMusical | null>(null);
+  readonly faixaExcluir = signal<FaixaKit | null>(null);
+  readonly aviso = signal<string | null>(null);
+  readonly avisoErro = signal(false);
+
+  /** Só administradores grava (e apaga) kits — igual às regras do Firestore. */
+  readonly podeGravar = computed(() => this.auth.ehAdmin());
+
+  readonly kits = computed(() => {
+    const termo = this.busca().trim().toLowerCase();
+    return [...this.store.kits()]
+      .filter((k) => (termo ? k.titulo.toLowerCase().includes(termo) : true))
+      .sort((a, b) => b.criadoEm - a.criadoEm);
+  });
+
+  /** Kit aberto no modal de detalhe, acompanhando a escuta em tempo real. */
+  readonly kitDetalhe = computed(() => {
+    const id = this.kitDetalheId();
+    return id ? this.store.kits().find((k) => k.id === id) ?? null : null;
+  });
+
+  /** Kit cujas faixas serão acrescentadas na gravação atual. */
+  readonly kitAlvo = computed(() => {
+    const id = this.kitAlvoId();
+    return id ? this.store.kits().find((k) => k.id === id) ?? null : null;
+  });
+
+  readonly podeSalvar = computed(() => {
+    const alvo = this.kitAlvo();
+    return this.faixasRascunho().length > 0 && (!!alvo || !!this.rascunho().titulo.trim());
+  });
+
+  formatarTempo = formatarTempo;
+
+  /** Data de criação (timestamp em ms) como 'DD/MM/AAAA'. */
+  dataCriacao(ts: number): string {
+    return new Date(ts).toLocaleDateString('pt-BR');
+  }
+
+  constructor() {
+    addIcons({
+      addOutline, trashOutline, saveOutline, closeOutline, micOutline,
+      stopOutline, playCircleOutline, pauseCircleOutline, musicalNotesOutline,
+      personCircleOutline, timerOutline,
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.descartarRascunho();
+    this.gravador.cancelar();
+  }
+
+  // --- Gravação ---
+
+  /** Abre o modal de gravação; com `kit`, acrescenta faixas nele. */
+  abrirGravacao(kit?: KitMusical): void {
+    if (!this.podeGravar()) return;
+    this.rascunho.set({ ...FORM_VAZIO });
+    this.kitAlvoId.set(kit?.id ?? null);
+    this.erroModal.set(null);
+    this.gravacaoAberta.set(true);
+  }
+
+  fecharGravacao(): void {
+    if (this.gravador.gravando()) this.gravador.cancelar();
+    else this.gravador.limpar();
+    this.descartarRascunho();
+    this.erroModal.set(null);
+    this.gravacaoAberta.set(false);
+    this.kitAlvoId.set(null);
+  }
+
+  async iniciarGravacao(): Promise<void> {
+    this.ultimaGravacao.set(null);
+    this.erroModal.set(null);
+    await this.gravador.iniciar();
+    if (this.gravador.erro()) this.erroModal.set(this.gravador.erro());
+  }
+
+  async pararGravacao(): Promise<void> {
+    const blob = await this.gravador.parar();
+    if (blob) this.ultimaGravacao.set(blob);
+  }
+
+  /** Fixa a gravação atual como faixa do rascunho (precisa de título). */
+  adicionarFaixa(): void {
+    const blob = this.ultimaGravacao();
+    const titulo = this.tituloFaixa().trim();
+    if (!blob || !titulo) return;
+    const faixa: FaixaRascunho = {
+      id: crypto.randomUUID(),
+      titulo,
+      blob,
+      duracao: this.gravador.duracaoSegundos(),
+      // Object URL próprio: o do gravador é revogado em `limpar()`.
+      previewUrl: URL.createObjectURL(blob),
+    };
+    this.faixasRascunho.update((lista) => [...lista, faixa]);
+    this.tituloFaixa.set('');
+    this.ultimaGravacao.set(null);
+    this.gravador.limpar();
+  }
+
+  removerFaixaRascunho(id: string): void {
+    const removida = this.faixasRascunho().find((f) => f.id === id);
+    if (removida) URL.revokeObjectURL(removida.previewUrl);
+    this.faixasRascunho.update((lista) => lista.filter((f) => f.id !== id));
+  }
+
+  /** Envia as faixas ao Storage e grava (ou completa) o kit no Firestore. */
+  async salvar(): Promise<void> {
+    const pendentes = this.faixasRascunho();
+    const alvo = this.kitAlvo();
+    const dados = this.rascunho();
+    if (!pendentes.length || (!alvo && !dados.titulo.trim())) return;
+
+    this.enviando.set(true);
+    this.erroModal.set(null);
+    try {
+      const agora = Date.now();
+      const kitId = alvo?.id ?? crypto.randomUUID();
+      const faixasNovas: FaixaKit[] = [];
+      for (const f of pendentes) {
+        const arquivo = blobParaArquivo(f.blob, f.titulo);
+        const url = await this.store.enviarArquivo(`kits/${kitId}/${arquivo.name}`, arquivo);
+        faixasNovas.push({
+          id: f.id,
+          titulo: f.titulo,
+          url,
+          criadoEm: agora,
+          ...(f.duracao > 0 ? { duracaoSegundos: f.duracao } : {}),
+        });
+      }
+
+      const descricao = dados.descricao.trim();
+      const autorId = this.auth.usuario()?.uid;
+      const autorNome = this.auth.perfil()?.nome ?? this.auth.nomeExibicao;
+      const kit: KitMusical = {
+        id: kitId,
+        titulo: alvo?.titulo ?? dados.titulo.trim(),
+        faixas: [...(alvo?.faixas ?? []), ...faixasNovas],
+        criadoEm: alvo?.criadoEm ?? agora,
+        atualizadoEm: agora,
+        // Opcionais só com valor: o Firestore rejeita `undefined`.
+        ...((alvo?.descricao ?? descricao) ? { descricao: alvo?.descricao ?? descricao } : {}),
+        ...((alvo?.autorId ?? autorId) ? { autorId: alvo?.autorId ?? autorId } : {}),
+        ...((alvo?.autorNome ?? autorNome) ? { autorNome: alvo?.autorNome ?? autorNome } : {}),
+      };
+      await this.store.salvar('kits', kit);
+
+      this.avisoErro.set(false);
+      this.aviso.set(
+        alvo
+          ? `${faixasNovas.length} faixa(s) acrescentada(s) ao kit "${kit.titulo}".`
+          : `Kit "${kit.titulo}" salvo com ${kit.faixas.length} faixa(s).`,
+      );
+      this.fecharGravacao();
+    } catch (err) {
+      this.erroModal.set(
+        err instanceof Error
+          ? `Falha ao enviar: ${err.message}`
+          : 'Falha ao enviar as faixas. Verifique a conexão.',
+      );
+    } finally {
+      this.enviando.set(false);
+    }
+  }
+
+  private descartarRascunho(): void {
+    for (const f of this.faixasRascunho()) URL.revokeObjectURL(f.previewUrl);
+    this.faixasRascunho.set([]);
+    this.ultimaGravacao.set(null);
+    this.tituloFaixa.set('');
+  }
+
+  // --- Escuta ---
+
+  abrirDetalhe(kit: KitMusical): void {
+    this.kitDetalheId.set(kit.id);
+  }
+
+  fecharDetalhe(): void {
+    this.kitDetalheId.set(null);
+  }
+
+  /** Toca a primeira faixa do kit pelo player global. */
+  tocarKit(kit: KitMusical): void {
+    const primeira = kit.faixas[0];
+    if (primeira) void this.tocarFaixa(kit, primeira);
+  }
+
+  /** Toca uma faixa pelo player global (continua ao trocar de tela). */
+  async tocarFaixa(kit: KitMusical, faixa: FaixaKit): Promise<void> {
+    if (this.estaTocando(faixa)) {
+      this.audio.parar();
+      return;
+    }
+    const louvor: Louvor = {
+      id: faixa.id,
+      titulo: faixa.titulo,
+      criadoEm: faixa.criadoEm,
+      atualizadoEm: kit.atualizadoEm,
+    };
+    await this.audio.tocar(louvor, {
+      url: faixa.url,
+      tipo: 'mp3',
+      ...(faixa.duracaoSegundos ? { duracaoSegundos: faixa.duracaoSegundos } : {}),
+    });
+  }
+
+  estaTocando(faixa: FaixaKit): boolean {
+    return this.audio.tocando() && this.audio.atual()?.midia.url === faixa.url;
+  }
+
+  faixasDe(kit: KitMusical): FaixaKit[] {
+    return kit.faixas ?? [];
+  }
+
+  podeExcluir(): boolean {
+    // As regras do Firestore/Storage negam kit para não-administradores,
+    // então a UI esconde o excluir em vez de deixar a exclusão falhar.
+    return this.podeGravar();
+  }
+
+  // --- Exclusões ---
+
+  pedirExclusao(kit: KitMusical): void {
+    this.kitExcluir.set(kit);
+  }
+
+  cancelarExclusao(): void {
+    this.kitExcluir.set(null);
+  }
+
+  async confirmarExclusao(): Promise<void> {
+    const kit = this.kitExcluir();
+    this.kitExcluir.set(null);
+    if (!kit) return;
+    try {
+      for (const faixa of this.faixasDe(kit)) {
+        await this.store.removerArquivo(faixa.url);
+      }
+      await this.store.remover('kits', kit.id);
+      if (this.kitDetalheId() === kit.id) this.fecharDetalhe();
+      this.avisoErro.set(false);
+      this.aviso.set(`Kit "${kit.titulo}" excluído.`);
+    } catch (err) {
+      this.avisoErro.set(true);
+      this.aviso.set(err instanceof Error ? err.message : 'Não foi possível excluir o kit.');
+    }
+  }
+
+  pedirExclusaoFaixa(faixa: FaixaKit): void {
+    this.faixaExcluir.set(faixa);
+  }
+
+  cancelarExclusaoFaixa(): void {
+    this.faixaExcluir.set(null);
+  }
+
+  async confirmarExclusaoFaixa(): Promise<void> {
+    const faixa = this.faixaExcluir();
+    this.faixaExcluir.set(null);
+    const kit = this.kitDetalhe();
+    if (!faixa || !kit) return;
+    try {
+      const restantes = this.faixasDe(kit).filter((f) => f.id !== faixa.id);
+      await this.store.atualizar<KitMusical>('kits', kit.id, {
+        faixas: restantes,
+        atualizadoEm: Date.now(),
+      });
+      await this.store.removerArquivo(faixa.url);
+      if (this.audio.atual()?.midia.url === faixa.url) this.audio.parar();
+    } catch (err) {
+      this.avisoErro.set(true);
+      this.aviso.set(err instanceof Error ? err.message : 'Não foi possível excluir a faixa.');
+    }
+  }
+
+  limparAviso(): void {
+    this.aviso.set(null);
+    this.avisoErro.set(false);
+  }
+}

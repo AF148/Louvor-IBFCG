@@ -1,0 +1,145 @@
+:host {
+  --biblia-toolbar: #fff7dc;
+  display: block;
+}
+
+.biblia-header ion-toolbar {
+  --background: var(--biblia-toolbar);
+  --min-height: 68px;
+  --border-width: 0;
+}
+
+.seletor-versao {
+  width: 104px;
+  max-width: 30vw;
+  min-height: 48px;
+  margin-inline: auto;
+  border: 1px solid var(--ion-color-step-500, #777);
+  border-radius: 9px;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.seletor-versao-trigger {
+  position: relative;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 104px;
+  max-width: 30vw;
+  min-height: 48px;
+  margin-inline: auto;
+  transform: translateX(24px);
+  padding: 0 8px;
+  border: 1px solid var(--ion-color-step-500, #777);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ion-text-color, #111);
+  font: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.biblia-opcoes {
+  position: absolute;
+  z-index: 20;
+  inset: 68px 10px auto auto;
+  width: min(360px, calc(100vw - 20px));
+  padding: 16px;
+  border: 1px solid var(--ion-color-step-150, #ddd);
+  border-radius: 12px;
+  background: var(--ion-background-color, #fff);
+  box-shadow: 0 8px 28px #0003;
+}
+
+.biblia-opcoes h2 { margin: 0 0 10px; font-size: 1.05rem; }
+.biblia-opcoes ion-input { margin-bottom: 8px; }
+.aviso-chave { display: block; margin-top: 8px; white-space: normal; }
+.versoes-locais-menu { display: grid; gap: 2px; margin-top: 8px; border-top: 1px solid var(--ion-color-step-150, #ddd); }
+.versoes-locais-menu span { padding-top: 8px; color: var(--ion-color-medium); font-size: .82rem; }
+.versoes-locais-menu ion-button { justify-content: flex-start; }
+
+.biblia-seletores {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 112px;
+  gap: 10px;
+  padding: 8px 16px 10px;
+  border-bottom: 1px solid var(--ion-color-step-150, #ddd);
+  background: var(--biblia-toolbar);
+}
+
+.biblia-seletores ion-select {
+  min-height: 56px;
+  padding-inline: 14px;
+  border: 1px solid var(--ion-color-step-150, #ddd);
+  border-radius: 14px;
+  background: var(--ion-background-color, #fff);
+  font-size: 1rem;
+}
+
+.seletor-capitulo { text-align: center; }
+
+.acao-offline { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 0 0 12px; }
+.acao-offline span, .indicador-offline { color: var(--ion-color-medium); font-size: .78rem; }
+
+/* A barra de pesquisa e os resultados ocupam o fluxo da página sem esconder o seletor. */
+.pesquisa-biblia { display: flex; align-items: end; gap: 8px; padding: 0 16px 10px; background: var(--biblia-toolbar); }
+.pesquisa-biblia ion-input { flex: 1; min-width: 0; --background: var(--ion-background-color, #fff); --padding-start: 12px; --padding-end: 12px; border: 1px solid var(--ion-color-step-150, #ddd); border-radius: 12px; }
+.pesquisa-biblia ion-button { min-width: 46px; height: 48px; margin: 0; }
+.resultados-pesquisa { max-width: 900px; margin: 0 auto; padding: 8px 16px 16px; }
+.resumo-pesquisa { color: var(--ion-color-medium); font-size: .92rem; }
+.resultado-pesquisa { display: grid; gap: 6px; width: 100%; padding: 14px 8px; border: 0; border-bottom: 1px solid var(--ion-color-step-150, #ddd); background: transparent; color: var(--ion-text-color); text-align: left; font: inherit; cursor: pointer; }
+.resultado-pesquisa strong { color: var(--ion-color-primary); }
+.resultado-pesquisa span { line-height: 1.45; }
+
+.biblia-content { --background: var(--ion-background-color, #fff); }
+.biblia-leitura { max-width: 900px; margin: 0 auto; padding: 20px 24px 112px; }
+.biblia-leitura h1 { margin: 4px 0 24px; text-align: center; font-size: 1.4rem; }
+.titulo-secao { margin: 26px 0 20px; text-align: center; font-size: 1.25rem; font-style: italic; font-weight: 700; }
+.versiculo { margin: 0; padding: 16px 4px 19px; border-bottom: 1px solid var(--ion-color-step-150, #ddd); font-size: clamp(1.08rem, 4.4vw, 1.4rem); line-height: 1.48; }
+.versiculo strong { font-weight: 700; }
+.copyright-biblia { display: block; margin: 20px 4px; font-size: .75rem; line-height: 1.4; white-space: normal; }
+
+.versiculo { cursor: pointer; transition: background-color .12s ease, color .12s ease; }
+.versiculo-selecionado { position: relative; z-index: 1; padding-inline: 12px; border-radius: 2px; background: #1b191c !important; color: #f8f6f8; }
+.versiculo-selecionado strong { color: inherit; }
+/* As setas ficam acima da navegação do aparelho e não recebem o flash azul do toque. */
+.navegacao-lateral { position: fixed; z-index: 15; inset: auto 8px calc(106px + env(safe-area-inset-bottom)); display: flex; justify-content: space-between; pointer-events: none; }
+.seta-pagina { width: 56px; height: 56px; --border-radius: 50%; --background: var(--ion-background-color, #fff); --background-activated: transparent; --background-focused: transparent; --background-hover: transparent; --background-activated-opacity: 0; --color: var(--ion-text-color, #111); --color-activated: var(--ion-text-color, #111); --box-shadow: 0 3px 14px #0002; --ripple-color: transparent; pointer-events: auto; -webkit-tap-highlight-color: transparent; user-select: none; }
+.seta-pagina ion-icon { font-size: 2.1rem; }
+.seta-pagina[disabled] { opacity: .3; }
+
+/* O painel inferior abre ao selecionar um versículo; a paleta e as ações editam esse trecho. */
+.painel-versiculo-fundo { position: fixed; z-index: 30; inset: 0; background: #0002; }
+.painel-versiculo { position: fixed; z-index: 31; right: 0; bottom: calc(58px + env(safe-area-inset-bottom)); left: 0; padding: 12px 16px 14px; border: 1px solid var(--ion-color-step-150, #ddd); border-bottom: 0; border-radius: 22px 22px 0 0; background: var(--ion-background-color, #fff); box-shadow: 0 -8px 26px #0002; }
+.alca-painel { width: 36px; height: 5px; margin: 0 auto 12px; border-radius: 8px; background: var(--ion-color-step-300, #ccc); }
+.acoes-versiculo { display: flex; justify-content: space-around; padding: 10px 0 16px; }
+.acoes-versiculo ion-button { width: 48px; height: 48px; --color: var(--ion-text-color, #171717); }
+.acoes-versiculo ion-icon { font-size: 1.6rem; }
+.cores-destaque { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: clamp(8px, 2vw, 16px); padding: 8px 0 14px; border-bottom: 1px solid var(--ion-color-step-150, #ddd); }
+.amostra-cor, .cor-remover, .seletor-cor-personalizada { flex: 0 0 clamp(34px, 8vw, 48px); width: clamp(34px, 8vw, 48px); height: clamp(34px, 8vw, 48px); border: 0; border-radius: 50%; }
+.cor-remover { background: var(--ion-color-step-150, #e5e5e5); color: var(--ion-text-color, #222); font-size: 1.7rem; }
+.amostra-cor { border: 2px solid transparent; cursor: pointer; }
+.amostra-cor.selecionada { outline: 3px solid var(--ion-color-primary, #3880ff); outline-offset: 2px; }
+.seletor-cor-personalizada { position: relative; display: grid; place-items: center; overflow: hidden; border: 2px solid #ddd; background-image: conic-gradient(#f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00); color: #fff; font-size: 1.8rem; text-shadow: 0 1px 4px #000; cursor: pointer; }
+.seletor-cor-personalizada input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.editor-nota { padding: 0 8px 12px; }
+.editor-nota ion-button { display: block; margin-inline-start: auto; }
+.nota-salva { margin: 0 8px 12px; padding: 10px 12px; border-radius: 8px; background: var(--ion-color-light); white-space: pre-wrap; }
+
+.biblia-aviso { display: block; margin: 8px 16px; white-space: normal; }
+.biblia-carregando, .biblia-vazia { min-height: 180px; display: flex; flex-direction: column; gap: 12px; align-items: center; justify-content: center; padding: 24px; color: var(--ion-color-medium); text-align: center; }
+.biblia-inicio { max-width: 520px; margin: 12vh auto; padding: 28px; text-align: center; }
+.biblia-icone { color: var(--ion-color-primary); font-size: 3.5rem; }
+.biblia-inicio h2 { margin: 8px 0; }
+.biblia-inicio p { color: var(--ion-color-medium); line-height: 1.5; }
+
+@media (min-width: 720px) {
+  .biblia-seletores { padding-inline: max(24px, calc((100vw - 900px) / 2)); }
+  .biblia-leitura { padding-inline: 36px; }
+  .painel-versiculo { right: 0; left: auto; width: min(440px, 42vw); border-radius: 22px 22px 0 0; }
+}
+/* Regras visuais do leitor bíblico, seletores, resultados e ferramentas de versículo. */

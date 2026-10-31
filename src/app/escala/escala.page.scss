@@ -1,0 +1,59 @@
+.calendario {
+  padding: 8px 12px 24px;
+}
+
+.calendario-cabecalho,
+.calendario-detalhe-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.calendario-cabecalho h2 {
+  margin: 0;
+  text-transform: capitalize;
+  font-size: 1.1rem;
+}
+
+.calendario-grade {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.calendario-semana {
+  padding: 8px 0;
+  text-align: center;
+  color: var(--ion-color-medium);
+  font-size: .75rem;
+  font-weight: 600;
+}
+
+.calendario-dia {
+  min-height: 48px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ion-text-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font: inherit;
+}
+
+.calendario-dia.fora-mes { color: var(--ion-color-medium); opacity: .55; }
+.calendario-dia.hoje { border-color: var(--ion-color-primary); }
+.calendario-dia.selecionado { background: var(--ion-color-primary); color: var(--ion-color-primary-contrast); }
+.marcador-culto { min-width: 6px; height: 6px; border-radius: 50%; background: var(--ion-color-secondary); font-size: 0; }
+.calendario-dia.selecionado .marcador-culto { background: currentColor; }
+.calendario-dia-detalhe { margin-top: 20px; }
+.calendario-dia-detalhe h3 { font-size: 1rem; text-transform: capitalize; }
+.calendario-vazio { padding: 12px 4px; color: var(--ion-color-medium); }
+
+@media (max-width: 360px) {
+  .calendario-dia { min-height: 42px; }
+  .calendario-semana { font-size: .68rem; }
+}
+/* Layout de abas, tabelas, edição e navegação das escalas e cultos. */

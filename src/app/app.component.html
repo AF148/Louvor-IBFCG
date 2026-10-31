@@ -1,0 +1,91 @@
+<ion-app>
+  <ion-menu contentId="main-content" side="start" type="overlay">
+    <ion-content>
+      <ion-list>
+        <ion-item lines="none" class="menu-titulo">
+          <ion-label><strong>Scale</strong><p>Navegação</p></ion-label>
+        </ion-item>
+        <ion-menu-toggle autoHide="false">
+          @for (item of navItems; track item.rota) {
+            <ion-item 
+              [routerLink]="item.rota" 
+              [class.selecionado]="isAtivo(item.rota)" 
+              button 
+              detail="false">
+              <ion-icon slot="start" [name]="item.icone"></ion-icon>
+              <ion-label>{{ item.label }}</ion-label>
+            </ion-item>
+          }
+        </ion-menu-toggle>
+      </ion-list>
+    </ion-content>
+  </ion-menu>
+
+  <ion-router-outlet id="main-content"></ion-router-outlet>
+  <ion-menu-button class="botao-menu" aria-label="Abrir menu de navegação"></ion-menu-button>
+  <!-- Perfil no canto superior direito: manda para /login se não houver conta. -->
+  <a class="botao-perfil" routerLink="/perfil" aria-label="Abrir perfil">
+    @if (auth.fotoPerfil(); as foto) {
+      <img [src]="foto" alt="">
+    } @else {
+      <ion-icon name="person-circle-outline"></ion-icon>
+    }
+  </a>
+
+  @if (audio.atual(); as faixa) {
+  <ion-footer>
+    <ion-toolbar class="player">
+      <div class="player-linha">
+        <div class="player-info">
+          <strong>{{ faixa.louvor.titulo }}</strong>
+          @if (faixa.louvor.tom) {
+            <span class="player-tom">{{ faixa.louvor.tom }}</span>
+          }
+        </div>
+
+        <div class="player-controles">
+          <ion-button fill="clear" size="small" (click)="audio.avancar(-10)" aria-label="Voltar 10 segundos">
+            <ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon>
+          </ion-button>
+          <ion-button fill="solid" size="small" (click)="audio.alternar()" [attr.aria-label]="audio.tocando() ? 'Pausar' : 'Tocar'">
+            <ion-icon slot="icon-only" [name]="audio.tocando() ? 'pause' : 'play'"></ion-icon>
+          </ion-button>
+          <ion-button fill="clear" size="small" (click)="audio.avancar(10)" aria-label="Avançar 10 segundos">
+            <ion-icon slot="icon-only" name="chevron-forward-outline"></ion-icon>
+          </ion-button>
+          <ion-button fill="clear" size="small" (click)="audio.parar()" aria-label="Parar">
+            <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+          </ion-button>
+        </div>
+      </div>
+
+      <div class="player-barra">
+        <span>{{ formatarTempo(audio.posicaoSegundos()) }}</span>
+        <ion-progress-bar [value]="audio.progresso()"></ion-progress-bar>
+        <span>{{ formatarTempo(audio.duracaoSegundos()) }}</span>
+      </div>
+
+      @if (audio.erro()) {
+        <p class="player-erro">{{ audio.erro() }}</p>
+      }
+    </ion-toolbar>
+  </ion-footer>
+  }
+
+  <!-- Barra de navegação inferior - apenas Início e Repertório -->
+  <nav class="abas">
+    @for (item of bottomNavItems; track item.rota) {
+      <a 
+        [routerLink]="item.rota" 
+        [class.ativa]="isAtivo(item.rota)" 
+        [attr.aria-label]="item.label">
+        <ion-icon [name]="item.icone"></ion-icon>
+        <span>{{ item.label }}</span>
+      </a>
+    }
+  </nav>
+
+  <!-- Elemento compartilhado: a reprodução não para ao navegar entre páginas. -->
+  <audio #audioEl preload="none"></audio>
+</ion-app>
+<!-- Estrutura global: menu de navegação, conteúdo roteado, player e abas móveis. -->

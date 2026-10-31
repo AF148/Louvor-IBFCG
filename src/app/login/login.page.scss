@@ -1,0 +1,52 @@
+.login-conteudo {
+  --padding-bottom: 104px;
+  --background: #f5f7fa;
+}
+
+.login-capa {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 34px 24px 30px;
+  color: #fff;
+  text-align: center;
+  background: linear-gradient(145deg, #0e2b43, #17617b);
+
+  h1 { margin: 14px 0 4px; font-size: 1.55rem; font-weight: 650; }
+  p { max-width: 300px; margin: 0; color: rgba(255,255,255,.78); line-height: 1.45; }
+}
+
+.avatar-login {
+  display: grid;
+  width: 96px;
+  height: 96px;
+  place-items: center;
+  border: 4px solid rgba(255,255,255,.78);
+  border-radius: 50%;
+  background: #d9e9f0;
+
+  ion-icon { font-size: 4rem; color: #17435b; }
+}
+
+.login-corpo {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+
+  ion-segment {
+    --background: #e9eef2;
+    border-radius: 12px;
+  }
+
+  ion-note { display: block; }
+}
+
+.botao-acesso { margin-top: 6px; }
+
+.dica-conta {
+  margin: 4px 0 0;
+  color: #64727c;
+  font-size: 0.85rem;
+  text-align: center;
+}
+/* Apresentação responsiva dos formulários de entrada e cadastro. */

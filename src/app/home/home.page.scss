@@ -1,0 +1,38 @@
+/* Título do app com a logo ao lado (barra da home). */
+.titulo-app {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+
+  img {
+    width: 26px;
+    height: 26px;
+    object-fit: contain;
+  }
+}
+
+.titulo-app-grande {
+  gap: 10px;
+
+  img {
+    width: 34px;
+    height: 34px;
+  }
+}
+
+/*
+ * Cards de atalho do início: mantêm a cor de fundo, mas com letra preta.
+ * O Ionic, ao receber [color], pinta o texto de branco — aqui devolvemos
+ * o preto no card e nos descendentes (título, descrição e ícone).
+ */
+.card-menu {
+  --color: #000;
+
+  ion-card-title,
+  ion-card-content,
+  ion-icon {
+    color: #000;
+  }
+}
+/* Aparência dos cartões de boas-vindas, atalhos e versículo da página inicial. */

@@ -1,0 +1,228 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-title>Perfil</ion-title>
+    @if (auth.usuario()) {
+      <ion-buttons slot="end">
+        <ion-button fill="clear" (click)="abrirEdicao()" aria-label="Editar perfil">
+          <ion-icon slot="icon-only" name="create-outline"></ion-icon>
+        </ion-button>
+      </ion-buttons>
+    }
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="perfil-conteudo">
+  <ion-header collapse="condense">
+    <ion-toolbar><ion-title size="large">Perfil</ion-title></ion-toolbar>
+  </ion-header>
+
+  @if (auth.usuario(); as usuario) {
+    <section
+      class="perfil-capa"
+      [style.background]="fundoCapaPerfil"
+      (click)="acaoCapa.set(true)"
+      role="button"
+      tabindex="0"
+      aria-label="Trocar capa do perfil"
+      [class.capa-carregando]="salvandoImagem()"
+    >
+      <button
+        type="button"
+        class="avatar-troca"
+        (click)="$event.stopPropagation(); fotoInput.click()"
+        aria-label="Trocar foto do perfil"
+      >
+        <span class="avatar-perfil" aria-hidden="true">
+          @if (perfil()?.fotoUrl; as foto) {
+            <img [src]="foto" alt="">
+          } @else {
+            {{ iniciais }}
+          }
+        </span>
+        <span class="badge-camera" aria-hidden="true">
+          <ion-icon name="camera-outline"></ion-icon>
+        </span>
+      </button>
+      <h1>
+        {{ perfil()?.nome ?? usuario.displayName ?? 'Seu perfil' }}
+        @if (auth.ehAdmin()) {
+          <ion-badge color="primary">Administrador</ion-badge>
+        }
+      </h1>
+      <p>Seu espaço na equipe</p>
+      @if (salvandoImagem()) {
+        <ion-spinner class="spinner-imagem" name="crescent"></ion-spinner>
+      }
+    </section>
+
+    <!-- Inputs de troca direta (foto pelo avatar, imagem pela capa) -->
+    <input #fotoInput type="file" accept="image/*" hidden (change)="trocarFotoDireto($event)">
+    <input #capaInput type="file" accept="image/*" hidden (change)="trocarCapaDireto($event)">
+
+    <!-- Opções da capa: imagem ou cor pronta -->
+    <ion-action-sheet
+      [isOpen]="acaoCapa()"
+      header="Capa do perfil"
+      [subHeader]="'Toque para escolher'"
+      [buttons]="capaBotoes()"
+      (didDismiss)="acaoCapa.set(false)"
+    ></ion-action-sheet>
+
+    @if (aviso(); as mensagem) {
+      <ion-note class="aviso-perfil" color="danger">{{ mensagem }}</ion-note>
+    }
+
+    @if (carregandoPerfil()) {
+      <div class="carregando"><ion-spinner name="crescent"></ion-spinner></div>
+    } @else {
+      <div class="perfil-corpo">
+        <section class="secao-perfil">
+          <div class="titulo-secao">
+            <h2>Sobre mim</h2>
+            <ion-button fill="clear" size="small" (click)="abrirEdicao()">Editar</ion-button>
+          </div>
+          <div class="identidade">
+            <div>
+              <strong>{{ perfil()?.nome ?? usuario.displayName ?? 'Seu nome' }}</strong>
+              <span>{{ usuario.email }}</span>
+            </div>
+            <ion-note><ion-icon name="shield-checkmark-outline"></ion-icon> Conta Scale</ion-note>
+          </div>
+          <p class="sobre-texto">{{ perfil()?.sobreMim || 'Conte um pouco sobre você e sua participação na equipe.' }}</p>
+        </section>
+
+        <section class="secao-perfil habilidades-secao">
+          <div class="titulo-secao">
+            <h2>Habilidades no grupo</h2>
+            <ion-button fill="clear" size="small" (click)="abrirEdicao()">Editar</ion-button>
+          </div>
+          @if (perfil()?.habilidades?.length) {
+            <div class="grade-habilidades">
+              @for (habilidade of perfil()?.habilidades; track habilidade) {
+                <div class="habilidade"><ion-icon name="musical-notes-outline"></ion-icon><span>{{ habilidade }}</span></div>
+              }
+            </div>
+          } @else {
+            <p class="texto-vazio">Adicione suas habilidades para que a equipe saiba como você pode contribuir.</p>
+          }
+        </section>
+
+        <ion-button class="botao-sair" expand="block" fill="outline" color="medium" (click)="sair()">
+          <ion-icon slot="start" name="log-out-outline"></ion-icon>Sair da conta
+        </ion-button>
+      </div>
+    }
+  } @else {
+    <section class="perfil-capa perfil-visitante">
+      <div class="avatar-perfil"><ion-icon name="person-circle-outline"></ion-icon></div>
+      <h1>Seu perfil</h1>
+      <p>Entre para compartilhar seus dons e talentos com a equipe.</p>
+    </section>
+    <ion-card class="cartao-visitante">
+      <ion-card-content>
+        <p>Crie sua conta ou entre para adicionar uma apresentação, suas habilidades e seus dados de contato.</p>
+        <ion-button expand="block" (click)="irParaLogin(false)">Entrar</ion-button>
+        <ion-button expand="block" fill="outline" (click)="irParaLogin(true)">Criar conta</ion-button>
+      </ion-card-content>
+    </ion-card>
+  }
+</ion-content>
+
+<ion-modal [isOpen]="modalEdicao()" (didDismiss)="modalEdicao.set(false)">
+  <ng-template>
+    <ion-header><ion-toolbar>
+      <ion-title>Editar perfil</ion-title>
+      <ion-buttons slot="end"><ion-button fill="clear" (click)="modalEdicao.set(false)" aria-label="Fechar"><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button></ion-buttons>
+    </ion-toolbar></ion-header>
+    <ion-content class="ion-padding">
+      <!-- Capa em prévia (atualiza ao escolher cor ou imagem) -->
+      <div class="previa-capa" [style.background]="capaPrevia">
+        <div class="avatar-perfil avatar-edicao">
+          @if (fotoUrl(); as foto) {
+            <img [src]="foto" alt="">
+          } @else {
+            {{ iniciaisEdicao }}
+          }
+        </div>
+      </div>
+
+      <h2 class="rotulo-secao">Foto do perfil</h2>
+      <div class="acoes-imagem">
+        <ion-button fill="outline" size="small" (click)="fotoArquivo.click()">
+          <ion-icon slot="start" name="camera-outline"></ion-icon>
+          {{ fotoUrl() ? 'Trocar foto' : 'Escolher foto' }}
+        </ion-button>
+        @if (fotoUrl()) {
+          <ion-button fill="clear" color="danger" size="small" (click)="removerFoto()">
+            <ion-icon slot="start" name="trash-outline"></ion-icon>Remover
+          </ion-button>
+        }
+      </div>
+      <input #fotoArquivo type="file" accept="image/*" hidden (change)="escolherFoto($event)">
+
+      <h2 class="rotulo-secao">Banner do perfil</h2>
+      <div class="acoes-imagem">
+        <ion-button fill="outline" size="small" (click)="bannerArquivo.click()">
+          <ion-icon slot="start" name="image-outline"></ion-icon>
+          {{ bannerUrl() ? 'Trocar imagem' : 'Usar imagem' }}
+        </ion-button>
+        @if (bannerUrl()) {
+          <ion-button fill="clear" color="danger" size="small" (click)="removerBanner()">
+            <ion-icon slot="start" name="trash-outline"></ion-icon>Remover imagem
+          </ion-button>
+        }
+      </div>
+      <input #bannerArquivo type="file" accept="image/*" hidden (change)="escolherBanner($event)">
+      <div class="grade-banners">
+        @for (banner of banners; track banner.id) {
+          <button
+            type="button"
+            class="swatch-banner"
+            [style.background]="banner.css"
+            [class.swatch-selecionado]="!bannerUrl() && bannerGradiente() === banner.css"
+            (click)="escolherGradiente(banner.css)"
+            [attr.aria-label]="'Gradiente ' + banner.nome"
+          >
+            @if (!bannerUrl() && bannerGradiente() === banner.css) {
+              <ion-icon name="checkmark-outline"></ion-icon>
+            }
+          </button>
+        }
+      </div>
+
+      <ion-input label="Nome" labelPlacement="stacked" [ngModel]="nome()" (ngModelChange)="nome.set($event)" placeholder="Seu nome"></ion-input>
+
+      <ion-select
+        label="Papel no ministério"
+        labelPlacement="stacked"
+        [ngModel]="papel()"
+        (ngModelChange)="papel.set($event)"
+        name="papel"
+        interface="popover"
+        placeholder="Escolha seu papel"
+        class="campo"
+      >
+        <ion-select-option value="">Não definido</ion-select-option>
+        @for (opcao of papeis; track opcao.value) {
+          <ion-select-option [value]="opcao.value">{{ opcao.label }}</ion-select-option>
+        }
+      </ion-select>
+      <p class="dica-papel">Os kits musicais são gravados pela equipe de administração.</p>
+
+      <ion-textarea class="campo-sobre" label="Sobre mim" labelPlacement="stacked" [ngModel]="sobreMim()" (ngModelChange)="sobreMim.set($event)" rows="5" placeholder="Conte um pouco sobre você"></ion-textarea>
+      <h2 class="rotulo-habilidades">Habilidades no grupo</h2>
+      <div class="seletor-habilidades">
+        @for (habilidade of habilidadesDisponiveis; track habilidade) {
+          <ion-chip [class.habilidade-selecionada]="habilidades().includes(habilidade)" (click)="alternarHabilidade(habilidade)">
+            <ion-icon name="musical-notes-outline"></ion-icon><ion-label>{{ habilidade }}</ion-label>
+          </ion-chip>
+        }
+      </div>
+      @if (aviso(); as mensagem) { <ion-note color="danger">{{ mensagem }}</ion-note> }
+      <ion-button expand="block" class="salvar-perfil" (click)="salvar()" [disabled]="salvando()">
+        @if (salvando()) { <ion-spinner name="crescent"></ion-spinner> } @else { Salvar perfil }
+      </ion-button>
+    </ion-content>
+  </ng-template>
+</ion-modal>
+<!-- Tela de perfil: formulário de dados pessoais, imagem de capa e preferências. -->

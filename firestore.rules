@@ -1,0 +1,93 @@
+rules_version = '2';
+
+// Permissões do app Scale — três níveis:
+//
+//  1. Anônimo (login automático do app): somente LEITURA dos dados da igreja.
+//  2. Membro logado (e-mail/senha): leitura + escrita em Repertório (louvores),
+//     Playlists e no próprio perfil (usuarios/{uid}).
+//  3. Administrador: escreve em tudo — Escala (cultos/planilhas), Participantes,
+//     Kits musicais e Mensagens.
+//
+// Os administradores ficam na coleção `admins` (id = uid do usuário, dados
+// livres: nome, email, criadoEm...). Os docs são criados no Console do
+// Firebase, então trocar um administrador não exige recompilar o app.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function autenticado() {
+      return request.auth != null;
+    }
+
+    // Quem entrou com e-mail/senha (exclui o acesso anônimo de leitura).
+    function membro() {
+      return autenticado() &&
+        request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    // Administrador: existe um doc em admins/{uid} com este uid.
+    function admin() {
+      return autenticado() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // ===== Editáveis por membros logados =====
+
+    match /louvores/{id} {
+      allow read: if autenticado();
+      allow write: if membro();
+    }
+
+    match /playlists/{id} {
+      allow read: if autenticado();
+      allow write: if membro();
+    }
+
+    // Perfil: cada um lê (para exibir nomes) e escreve o próprio documento.
+    match /usuarios/{uid} {
+      allow read: if autenticado();
+      allow create, update: if membro() && request.auth.uid == uid;
+      allow delete: if admin();
+    }
+
+    // ===== Somente administradores alteram =====
+
+    match /cultos/{id} {
+      allow read: if autenticado();
+      allow write: if admin();
+    }
+
+    match /planilhas/{id} {
+      allow read: if autenticado();
+      allow write: if admin();
+    }
+
+    match /participantes/{id} {
+      allow read: if autenticado();
+      allow write: if admin();
+    }
+
+    match /kits/{id} {
+      allow read: if autenticado();
+      allow write: if admin();
+    }
+
+    match /mensagens/{id} {
+      allow read: if autenticado();
+      allow write: if admin();
+    }
+
+    // Lista de administradores: membros leem (o app verifica se o usuário
+    // logado é admin); escrita bloqueada no cliente — só o Console do
+    // Firebase altera, para não permitir auto-promoção pelo app.
+    match /admins/{uid} {
+      allow read: if membro();
+      allow write: if false;
+    }
+
+    // Coleções desconhecidas: leitura para quem está logado, escrita negada.
+    match /{colecao}/{id} {
+      allow read: if autenticado();
+      allow write: if false;
+    }
+  }
+}

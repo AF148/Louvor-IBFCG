@@ -1,0 +1,86 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-title>{{ modo() === 'criar' ? 'Criar conta' : 'Entrar' }}</ion-title>
+    <ion-buttons slot="end">
+      <ion-button fill="clear" (click)="fechar()" aria-label="Fechar">
+        <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="login-conteudo">
+  <ion-header collapse="condense">
+    <ion-toolbar>
+      <ion-title size="large">{{ modo() === 'criar' ? 'Criar conta' : 'Entrar' }}</ion-title>
+    </ion-toolbar>
+  </ion-header>
+
+  <section class="login-capa">
+    <div class="avatar-login" aria-hidden="true">
+      <ion-icon name="person-circle-outline"></ion-icon>
+    </div>
+    <h1>Scale</h1>
+    <p>Entre com sua conta para acessar seu perfil e a equipe.</p>
+  </section>
+
+  <form class="login-corpo" (ngSubmit)="enviar()">
+    <ion-segment [value]="modo()" (ionChange)="aoTrocarModo($event)">
+      <ion-segment-button value="entrar">
+        <ion-label>Entrar</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="criar">
+        <ion-label>Criar conta</ion-label>
+      </ion-segment-button>
+    </ion-segment>
+
+    @if (modo() === 'criar') {
+      <ion-input
+        label="Nome" labelPlacement="stacked"
+        [ngModel]="nome()" (ngModelChange)="nome.set($event)"
+        name="nome" autocomplete="name" placeholder="Seu nome"
+      ></ion-input>
+    }
+    <ion-input
+      label="E-mail" labelPlacement="stacked"
+      [ngModel]="email()" (ngModelChange)="email.set($event)"
+      name="email" type="email" autocomplete="email"
+      placeholder="voce@email.com"
+    ></ion-input>
+    <ion-input
+      label="Senha" labelPlacement="stacked"
+      [ngModel]="senha()" (ngModelChange)="senha.set($event)"
+      name="senha" type="password"
+      [autocomplete]="modo() === 'criar' ? 'new-password' : 'current-password'"
+      placeholder="Mínimo de 6 caracteres"
+    ></ion-input>
+
+    @if (!firebaseConfigurado) {
+      <ion-note color="warning">
+        Firebase não configurado. Preencha as credenciais em
+        src/environments/environment.ts para usar o login.
+      </ion-note>
+    }
+    @if (aviso(); as mensagem) {
+      <ion-note color="danger">{{ mensagem }}</ion-note>
+    }
+
+    <ion-button class="botao-acesso" expand="block" type="submit" [disabled]="auth.carregando()">
+      @if (auth.carregando()) {
+        <ion-spinner name="crescent"></ion-spinner>
+      } @else {
+        <ion-icon slot="start" [name]="modo() === 'criar' ? 'person-add-outline' : 'log-in-outline'"></ion-icon>
+        {{ modo() === 'criar' ? 'Criar conta' : 'Entrar' }}
+      }
+    </ion-button>
+
+    <p class="dica-conta">
+      @if (modo() === 'criar') {
+        Já tem conta? Troque para a aba <strong>Entrar</strong> acima.
+      } @else {
+        Ainda não tem conta? Troque para a aba <strong>Criar conta</strong> acima.
+      }
+    </p>
+  </form>
+</ion-content>
+<!-- Tela de autenticação: alterna entre entrar na conta e criar um novo acesso. -->

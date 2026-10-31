@@ -1,0 +1,190 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-title>Participantes</ion-title>
+    <ion-buttons slot="end">
+      @if (podeEditar()) {
+        <ion-button fill="clear" (click)="abrirNovo()" aria-label="Novo participante">
+          <ion-icon slot="icon-only" name="person-add-outline"></ion-icon>
+        </ion-button>
+      }
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <ion-header collapse="condense">
+    <ion-toolbar>
+      <ion-title size="large">Participantes</ion-title>
+    </ion-toolbar>
+  </ion-header>
+
+  <!-- Aniversariantes do dia -->
+  @if (aniversariantes().length) {
+    <ion-card class="card-aniversariantes" color="warning">
+      <ion-card-header>
+        <ion-card-title>
+          <ion-icon name="cafe-outline" slot="start"></ion-icon>
+          Aniversariantes de hoje
+        </ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        @for (p of aniversariantes(); track p.id) {
+          <div class="aniversariante-item">
+            <ion-avatar>
+              <ion-icon name="person-circle-outline"></ion-icon>
+            </ion-avatar>
+            <div>
+              <strong>{{ p.nome }}</strong>
+              <br>
+              <ion-note>{{ labelPapel(p.papel) }}</ion-note>
+            </div>
+          </div>
+        }
+      </ion-card-content>
+    </ion-card>
+  }
+
+  <div class="toolbar-acao">
+    <ion-segment [(ngModel)]="filtroPapel" (ionChange)="filtroPapel.set($any($event.detail.value))">
+      <ion-segment-button value="todos">
+        <ion-label>Todos</ion-label>
+      </ion-segment-button>
+      @for (p of papeis; track p.value) {
+        <ion-segment-button [value]="p.value">
+          <ion-icon [name]="p.icone" slot="start"></ion-icon>
+          <ion-label>{{ p.label }}</ion-label>
+        </ion-segment-button>
+      }
+    </ion-segment>
+  </div>
+
+  <ion-list>
+    @for (p of participantes(); track p.id) {
+      <ion-item-sliding>
+        <ion-item button (click)="abrirEdicao(p)">
+          <ion-avatar slot="start">
+            <ion-icon [name]="iconePapel(p.papel)"></ion-icon>
+          </ion-avatar>
+          <ion-label>
+            <h3>{{ p.nome }}</h3>
+            <div class="sub-linha">
+              <ion-badge [color]="p.ativo ? 'success' : 'medium'">{{ labelPapel(p.papel) }}</ion-badge>
+              @if (p.telefone) { <ion-note>· {{ p.telefone }}</ion-note> }
+              @if (p.email) { <ion-note>· {{ p.email }}</ion-note> }
+              @if (p.nascimento) { <ion-note>· 🎂 {{ p.nascimento }}</ion-note> }
+              @if (!p.ativo) { <ion-note color="medium">· inativo</ion-note> }
+            </div>
+          </ion-label>
+        </ion-item>
+        @if (podeEditar()) {
+        <ion-item-options side="end">
+          <ion-item-option (click)="abrirEdicao(p)">
+            <ion-icon slot="icon-only" name="create-outline"></ion-icon>
+          </ion-item-option>
+          <ion-item-option color="danger" (click)="remover(p)">
+            <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+          </ion-item-option>
+        </ion-item-options>
+        }
+      </ion-item-sliding>
+    } @empty {
+      <div class="vazio">
+        <ion-icon name="people-outline"></ion-icon>
+        <p>Nenhum participante cadastrado.</p>
+        @if (podeEditar()) {
+          <ion-button (click)="abrirNovo()">Adicionar participante</ion-button>
+        }
+      </div>
+    }
+  </ion-list>
+</ion-content>
+
+<!-- Modal Novo/Editar Participante -->
+<ion-modal [isOpen]="modalAberto()" (didDismiss)="fechar()">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>{{ podeEditar() ? (emEdicao() ? 'Editar participante' : 'Novo participante') : 'Participante' }}</ion-title>
+        <ion-buttons slot="end">
+          <ion-button fill="clear" (click)="fechar()">
+            <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content class="ion-padding">
+      <form #form="ngForm" (ngSubmit)="salvar()">
+        <ion-item>
+          <ion-label position="stacked">Nome</ion-label>
+          <ion-input [(ngModel)]="rascunho().nome" name="nome" required placeholder="Nome completo"></ion-input>
+        </ion-item>
+
+        <ion-item>
+          <ion-label position="stacked">Papel</ion-label>
+          <ion-select [(ngModel)]="rascunho().papel" name="papel" interface="popover">
+            @for (p of papeis; track p.value) {
+              <ion-select-option [value]="p.value">
+                <ion-icon [name]="p.icone" slot="start"></ion-icon>
+                {{ p.label }}
+              </ion-select-option>
+            }
+          </ion-select>
+        </ion-item>
+
+        <ion-item>
+          <ion-label position="stacked">Telefone</ion-label>
+          <ion-input [(ngModel)]="rascunho().telefone" name="telefone" type="tel" placeholder="(11) 99999-9999"></ion-input>
+        </ion-item>
+
+        <ion-item>
+          <ion-label position="stacked">E-mail</ion-label>
+          <ion-input [(ngModel)]="rascunho().email" name="email" type="email" placeholder="email@exemplo.com"></ion-input>
+        </ion-item>
+
+        <ion-item>
+          <ion-label position="stacked">Data de nascimento</ion-label>
+          <ion-input [(ngModel)]="rascunho().nascimento" name="nascimento" type="date"></ion-input>
+        </ion-item>
+
+        <ion-item>
+          <ion-label position="stacked">
+            <ion-checkbox [(ngModel)]="rascunho().ativo" name="ativo" slot="start"></ion-checkbox>
+            Ativo
+          </ion-label>
+        </ion-item>
+
+        <ion-item>
+          <ion-label position="stacked">Observações</ion-label>
+          <ion-textarea [(ngModel)]="rascunho().observacoes" name="observacoes" rows="3" placeholder="Opcional"></ion-textarea>
+        </ion-item>
+
+        @if (aviso(); as texto) {
+          <ion-chip outline color="danger">{{ texto }}</ion-chip>
+        }
+
+        <div class="rodape-modal">
+          @if (podeEditar()) {
+            <ion-button type="button" fill="outline" (click)="fechar()">Cancelar</ion-button>
+            <ion-button type="submit" [disabled]="!form.valid">Salvar</ion-button>
+          } @else {
+            <ion-note color="medium">Somente administradores editam a equipe.</ion-note>
+            <ion-button type="button" (click)="fechar()">Fechar</ion-button>
+          }
+        </div>
+      </form>
+    </ion-content>
+  </ng-template>
+</ion-modal>
+
+<!-- Confirmação exclusão -->
+<ion-alert
+  [isOpen]="!!participanteExcluir()"
+  header="Excluir participante"
+  message="Tem certeza que deseja excluir este participante?"
+  [buttons]="[
+    { text: 'Cancelar', role: 'cancel', handler: () => cancelarExclusao() },
+    { text: 'Excluir', role: 'destructive', handler: () => confirmarExclusao() }
+  ]"
+></ion-alert>
+<!-- Tela de equipe: apresenta participantes e controles para incluir ou editar pessoas. -->

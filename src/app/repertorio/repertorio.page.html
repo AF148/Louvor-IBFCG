@@ -1,0 +1,482 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-title>Repertório</ion-title>
+    <ion-buttons slot="end">
+      @if (podeEditar()) {
+        <ion-button fill="clear" (click)="abrirNovo()" aria-label="Adicionar louvor">
+          <ion-icon slot="icon-only" name="add-outline"></ion-icon>
+        </ion-button>
+      }
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <ion-header collapse="condense">
+    <ion-toolbar>
+      <ion-title size="large">Repertório</ion-title>
+    </ion-toolbar>
+  </ion-header>
+
+  <div class="toolbar-acao">
+    @if (modoSelecaoLouvores()) {
+      <ion-checkbox
+        [checked]="todosLouvoresSelecionados()"
+        (ionChange)="alternarTodosLouvores($any($event.detail).checked)"
+        aria-label="Selecionar todos os louvores encontrados"
+        title="Selecionar todos"
+      ></ion-checkbox>
+    }
+    <ion-searchbar
+      [value]="busca()"
+      (ionInput)="busca.set($any($event.detail.value) ?? '')"
+      placeholder="Buscar louvor"
+      debounce="200"
+    ></ion-searchbar>
+    @if (podeEditar()) {
+      <ion-button fill="clear" [color]="modoSelecaoLouvores() && louvoresSelecionados().size ? 'danger' : 'medium'" (click)="acionarExclusaoLouvores()" [attr.aria-label]="modoSelecaoLouvores() && louvoresSelecionados().size ? 'Excluir louvores selecionados' : 'Selecionar louvores para excluir'">
+        <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+      </ion-button>
+    }
+  </div>
+
+  @if (store.erro(); as erro) {
+    <ion-item color="danger" lines="none">
+      <ion-label class="ion-text-wrap">{{ erro }}</ion-label>
+    </ion-item>
+  }
+
+  <ion-list>
+    @for (l of lista(); track l.id) {
+      <ion-item-sliding>
+        <ion-item button (click)="verDetalhe(l)">
+          @if (modoSelecaoLouvores()) {
+            <ion-checkbox
+              slot="start"
+              [checked]="louvoresSelecionados().has(l.id)"
+              (click)="$event.stopPropagation()"
+              (ionChange)="alternarSelecaoLouvor(l.id, $any($event.detail).checked)"
+              [attr.aria-label]="'Selecionar ' + l.titulo"
+            ></ion-checkbox>
+          }
+          <ion-icon
+            slot="start"
+            [name]="l.midia?.tipo === 'mp4' ? 'videocam-outline' : 'musical-notes-outline'"
+            [color]="l.midia ? 'primary' : 'medium'"
+          ></ion-icon>
+          <ion-label>
+            <div class="item-nome">
+              <h3>{{ l.titulo }}</h3>
+              @if (estaTocando(l)) {
+                <ion-badge color="success">tocando</ion-badge>
+              }
+            </div>
+            <div class="sub-linha">
+              @if (l.tom) { <ion-note>{{ l.tom }}</ion-note> }
+              @if (l.bpm) { <ion-note>· {{ l.bpm }} bpm</ion-note> }
+              @if (l.cifra) { <ion-note>· tem cifra</ion-note> }
+              @if (!l.midia) { <ion-note>· sem áudio</ion-note> }
+            </div>
+          </ion-label>
+          @if (l.midia) {
+            <ion-button slot="end" fill="clear" (click)="tocar(l); $event.stopPropagation()" aria-label="Tocar">
+              <ion-icon slot="icon-only" name="play-circle-outline"></ion-icon>
+            </ion-button>
+          }
+        </ion-item>
+        @if (podeEditar()) {
+        <ion-item-options side="end">
+          <ion-item-option (click)="abrirEdicao(l)">
+            <ion-icon slot="icon-only" name="create-outline"></ion-icon>
+          </ion-item-option>
+          <ion-item-option color="danger" (click)="remover(l)">
+            <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+          </ion-item-option>
+        </ion-item-options>
+        }
+      </ion-item-sliding>
+    } @empty {
+      <div class="vazio">
+        <ion-icon name="musical-notes-outline"></ion-icon>
+        <p>Nenhum louvor cadastrado ainda.</p>
+        @if (podeEditar()) {
+          <ion-button (click)="abrirNovo()">Adicionar louvor</ion-button>
+        }
+      </div>
+    }
+  </ion-list>
+</ion-content>
+
+<ion-alert
+  [isOpen]="confirmarExclusaoLote()"
+  header="Excluir louvores"
+  [message]="'Excluir ' + louvoresSelecionados().size + ' louvor(es) selecionado(s)? Esta ação não pode ser desfeita.'"
+  [buttons]="[
+    { text: 'Cancelar', role: 'cancel', handler: () => confirmarExclusaoLote.set(false) },
+    { text: 'Excluir', role: 'destructive', handler: () => confirmarExclusaoLouvores() }
+  ]"
+></ion-alert>
+
+<!-- Detalhe: página de cifra estilo Cifra Club -->
+<ion-modal [isOpen]="detalheAberto()" (didDismiss)="fecharDetalhe()" class="modal-cifra">
+  <ng-template>
+    @if (detalhe(); as l) {
+      <div class="pagina-cifra">
+        <header class="cabecalho">
+          <div class="cabecalho-texto">
+            <h1>{{ l.titulo }}</h1>
+            @if (l.artista) {
+              <p class="artista">{{ l.artista }}</p>
+            }
+          </div>
+          <div class="cabecalho-lado">
+            @if (l.midia) {
+              <button class="miniatura" (click)="alternarPainel('midia')" [class.tocando]="painel() === 'midia'" aria-label="Abrir mídia">
+                @if (l.midia.tipo === 'mp4') {
+                  <video [src]="l.midia.url" preload="metadata" muted playsinline tabindex="-1"></video>
+                } @else {
+                  <ion-icon name="musical-notes-outline"></ion-icon>
+                }
+                <ion-icon class="icone-play" name="play-circle-outline"></ion-icon>
+              </button>
+            }
+            <button class="botao-simples fechar" (click)="fecharDetalhe()" aria-label="Fechar">
+              <ion-icon name="close-outline"></ion-icon>
+            </button>
+          </div>
+        </header>
+
+        <nav class="abas-detalhe">
+          <button [class.ativa]="aba() === 'principal'" (click)="mudarAba('principal')">Principal</button>
+          @if (l.letra) {
+            <button [class.ativa]="aba() === 'letra'" (click)="mudarAba('letra')">Letra</button>
+          }
+          <button [class.ativa]="aba() === 'mais'" (click)="mudarAba('mais')">Mais</button>
+        </nav>
+
+        <div class="corpo-cifra" [style.font-size.px]="tamanhoFonte()">
+          @if (aba() === 'principal') {
+            @if (diagramas().length) {
+              <div class="acordes-scroll">
+                @for (d of diagramas(); track d.nome) {
+                  <figure class="diagrama">
+                    <figcaption>{{ d.nome }}</figcaption>
+                    @if (d.temGrade) {
+                      <div class="diagrama-simbolos">
+                        @for (s of d.pos; track $index) {
+                          <span>{{ s === -1 ? 'x' : (s === 0 ? 'o' : '') }}</span>
+                        }
+                      </div>
+                      <div class="diagrama-grade">
+                        @if (d.casaInicial !== 1) {
+                          <span class="casa-numero">{{ d.casaInicial }}</span>
+                        }
+                        @if (d.barra; as b) {
+                          <div
+                            class="pestana-dupla"
+                            [style.left.px]="b.de * 10"
+                            [style.width.px]="(b.ate - b.de) * 10"
+                            [style.top.px]="(b.casa - d.casaInicial) * 12 + 6"
+                          ></div>
+                        }
+                        @for (pt of d.pontos; track $index) {
+                          <div
+                            class="ponto"
+                            [style.left.px]="pt.s * 10"
+                            [style.top.px]="(pt.casa - d.casaInicial) * 12 + 6"
+                          >{{ pt.dedo }}</div>
+                        }
+                      </div>
+                    }
+                  </figure>
+                }
+              </div>
+            }
+
+            <p class="linha-tom">
+              Tom: <strong>{{ tomAtual() ?? l.tom ?? '—' }}</strong>
+              @if (transposicao() !== 0) {
+                <span class="desvio">({{ transposicao() > 0 ? '+' + transposicao() : transposicao() }})</span>
+              }
+            </p>
+
+            @if (l.cifra) {
+              <div class="cifra-rolagem" #areaRolagem>
+                @for (linha of linhasCifra(); track $index) {
+                  @if (linha.acordes) {
+                    <p class="linha-acordes" [innerHTML]="linha.html"></p>
+                  } @else {
+                    <p class="linha-texto">{{ linha.texto || ' ' }}</p>
+                  }
+                }
+              </div>
+            } @else {
+              <p class="vazio-detalhe">Sem cifra cadastrada.</p>
+            }
+          } @else if (aba() === 'letra') {
+            <div class="cifra-rolagem somente-letra" #areaRolagem>
+              @for (texto of linhasLetra(); track $index) {
+                <p class="linha-texto">{{ texto || ' ' }}</p>
+              }
+            </div>
+          } @else {
+            <div class="info-mais">
+              @if (l.tom) { <p><strong>Tom original:</strong> {{ l.tom }}</p> }
+              @if (l.bpm) { <p><strong>BPM:</strong> {{ l.bpm }}</p> }
+              @if (l.fonteCifra) { <p><strong>Fonte da cifra:</strong> {{ l.fonteCifra }}</p> }
+              @if (l.midia) { <p><strong>Mídia:</strong> {{ l.midia.tipo === 'mp4' ? 'Vídeo' : 'Áudio' }}</p> }
+              @if (podeEditar()) {
+                <ion-button expand="block" fill="outline" (click)="editarDoDetalhe(l)">
+                  <ion-icon slot="start" name="create-outline"></ion-icon>
+                  Editar louvor
+                </ion-button>
+              }
+            </div>
+          }
+        </div>
+
+        <!-- Painéis flutuantes -->
+        @if (painel() === 'tom') {
+          <div class="painel-flutuante">
+            <div class="painel-linha">
+              <button class="botao-simples" (click)="ajustar(-1)" aria-label="Um tom abaixo">
+                <ion-icon name="remove-outline"></ion-icon>
+              </button>
+              <span class="painel-valor">
+                {{ transposicao() === 0 ? 'Original' : (transposicao() > 0 ? '+' + transposicao() : transposicao()) }}
+              </span>
+              <button class="botao-simples" (click)="ajustar(1)" aria-label="Um tom acima">
+                <ion-icon name="add-outline"></ion-icon>
+              </button>
+              <button class="botao-simples destaque" (click)="zerar()">Original</button>
+              @if (podeEditar()) {
+                <button class="botao-simples destaque" (click)="salvarTransposicao()" [disabled]="salvandoTransposicao()">
+                  Salvar tom
+                </button>
+              }
+            </div>
+            @if (avisoTransposicao(); as av) {
+              <p class="painel-aviso">{{ av }}</p>
+            }
+          </div>
+        }
+
+        @if (painel() === 'rolagem') {
+          <div class="painel-flutuante">
+            <div class="painel-linha">
+              <button class="botao-simples destaque" (click)="alternarRolagem()">
+                {{ rolagemAtiva() ? 'Parar' : 'Rolar' }}
+              </button>
+              <input
+                type="range"
+                min="10"
+                max="150"
+                [value]="velocidade()"
+                (input)="velocidade.set(+$any($event.target).value)"
+                aria-label="Velocidade da rolagem"
+              />
+              <span class="painel-valor">{{ velocidade() }} px/s</span>
+            </div>
+          </div>
+        }
+
+        @if (painel() === 'midia') {
+          <div class="painel-flutuante painel-midia">
+            @if (l.midia) {
+              @if (l.midia.tipo === 'mp4') {
+                <video class="video-midia" [src]="l.midia.url" controls playsinline></video>
+              } @else {
+                <audio class="audio-midia" [src]="l.midia.url" controls preload="metadata"></audio>
+              }
+              <p class="painel-dica">
+                Player direto na página. Para trocar de música, feche este painel e use a lista do Repertório.
+              </p>
+            } @else {
+              <p class="painel-erro-midia">Este louvor ainda não tem arquivo de mídia anexada.</p>
+              @if (podeEditar()) {
+                <button class="botao-simples destaque" (click)="editarDoDetalhe(l)">
+                  <ion-icon name="cloud-upload-outline"></ion-icon>
+                  Anexar mp3 ou mp4
+                </button>
+              }
+            }
+          </div>
+        }
+
+        @if (painel() === 'opcoes') {
+          <div class="painel-flutuante">
+            <div class="painel-linha">
+              <span class="painel-rotulo">Tamanho da cifra</span>
+              <button class="botao-simples" (click)="ajustarFonte(-1)">A−</button>
+              <button class="botao-simples" (click)="ajustarFonte(1)">A+</button>
+              <button class="botao-simples destaque" (click)="editarDoDetalhe(l)">
+                <ion-icon name="create-outline"></ion-icon>
+                Editar
+              </button>
+            </div>
+          </div>
+        }
+
+        <!-- Barra de ferramentas flutuante -->
+        <nav class="barra-ferramentas">
+          <button [class.ativa]="painel() === 'tom'" (click)="alternarPainel('tom')">
+            <ion-icon name="swap-vertical-outline"></ion-icon>
+            <span>Tom</span>
+          </button>
+          <button [class.ativa]="painel() === 'rolagem'" (click)="alternarPainel('rolagem')">
+            <ion-icon name="chevron-down-outline"></ion-icon>
+            <span>Rolagem</span>
+          </button>
+          <button (click)="alternarPainel('midia')" [class.ativa]="painel() === 'midia'">
+            <ion-icon name="play-circle-outline"></ion-icon>
+            <span>Mídia</span>
+          </button>
+          <button [class.ativa]="painel() === 'opcoes'" (click)="alternarPainel('opcoes')">
+            <ion-icon name="apps-outline"></ion-icon>
+            <span>Opções</span>
+          </button>
+        </nav>
+      </div>
+    }
+  </ng-template>
+</ion-modal>
+
+<!-- Cadastro / Edição -->
+<ion-modal [isOpen]="modalAberto()" (didDismiss)="fechar()">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>{{ podeEditar() ? (emEdicao() ? 'Editar louvor' : 'Novo louvor') : 'Louvor' }}</ion-title>
+        <ion-buttons slot="end">
+          <ion-button fill="clear" (click)="fechar()">
+            <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content>
+      <div class="pagina-modal">
+        <ion-item>
+          <ion-input
+            label="Título"
+            labelPlacement="stacked"
+            [value]="rascunho().titulo"
+            (ionInput)="alterar('titulo', $any($event.detail.value) ?? '')"
+            placeholder="Nome do louvor"
+          ></ion-input>
+        </ion-item>
+
+        <ion-item>
+          <ion-input
+            label="Artista / ministério"
+            labelPlacement="stacked"
+            [value]="rascunho().artista"
+            (ionInput)="alterar('artista', $any($event.detail.value) ?? '')"
+            placeholder="Usado na busca externa"
+          ></ion-input>
+        </ion-item>
+
+        <ion-item>
+          <ion-input
+            label="Tom"
+            labelPlacement="stacked"
+            [value]="rascunho().tom"
+            (ionInput)="alterar('tom', $any($event.detail.value) ?? '')"
+            placeholder="Ex.: G, Am, Bb"
+          ></ion-input>
+        </ion-item>
+
+        <ion-item>
+          <ion-input
+            label="BPM"
+            type="number"
+            labelPlacement="stacked"
+            [value]="rascunho().bpm"
+            (ionInput)="alterar('bpm', $event.detail.value ? +$event.detail.value : null)"
+          ></ion-input>
+        </ion-item>
+
+        <div class="acoes-externas">
+          <ion-button size="small" fill="outline" (click)="buscarExterno()" [disabled]="cifraSvc.carregando()">
+            <ion-icon slot="start" name="cloud-upload-outline"></ion-icon>
+            Buscar letra e cifra
+          </ion-button>
+          @if (cifraSvc.carregando()) {
+            <ion-spinner name="dots"></ion-spinner>
+          }
+        </div>
+
+        @if (aviso(); as texto) {
+          <ion-chip outline>{{ texto }}</ion-chip>
+        }
+
+        <ion-item>
+          <ion-textarea
+            label="Cifra"
+            labelPlacement="stacked"
+            [value]="rascunho().cifra"
+            (ionInput)="alterar('cifra', $any($event.detail.value) ?? '')"
+            [autoGrow]="true"
+            rows="6"
+            placeholder="Cole a cifra aqui"
+          ></ion-textarea>
+        </ion-item>
+
+        <ion-item>
+          <ion-textarea
+            label="Letra"
+            labelPlacement="stacked"
+            [value]="rascunho().letra"
+            (ionInput)="alterar('letra', $any($event.detail.value) ?? '')"
+            [autoGrow]="true"
+            rows="6"
+            placeholder="Cole a letra aqui"
+          ></ion-textarea>
+        </ion-item>
+
+        @if (emEdicao()) {
+          <h3 class="secao">Áudio ou vídeo</h3>
+          @if (podeEditar()) {
+            <p class="dica-media">
+              Aceita mp3 e mp4. Escolher sem salvar envia direto ao Firebase Storage.
+            </p>
+            <div class="acoes-externas">
+              <label class="botao-arquivo">
+                <input type="file" accept="audio/mpeg,mp3,audio/*,video/mp4" (change)="escolherArquivo($event)" />
+                <span>
+                  <ion-icon name="cloud-upload-outline"></ion-icon>
+                  Enviar mp3 ou mp4
+                </span>
+              </label>
+            </div>
+            @if (enviando()) {
+              <ion-spinner name="dots"></ion-spinner>
+            }
+
+            <label class="botao-arquivo">
+              <input type="file" accept="audio/*,video/mp4" (change)="tocarLocal($event, emEdicao()!)" />
+              <span>
+                <ion-icon name="play-circle-outline"></ion-icon>
+                Tocar arquivo do aparelho
+              </span>
+            </label>
+          }
+        } @else {
+          <p class="dica-media">Salve o louvor para depois anexar o arquivo mp3 ou mp4.</p>
+        }
+      </div>
+
+      <div class="rodape-modal">
+        @if (podeEditar()) {
+          <ion-button fill="outline" (click)="fechar()">Cancelar</ion-button>
+          <ion-button (click)="salvar()" [disabled]="!rascunho().titulo.trim()">Salvar</ion-button>
+        } @else {
+          <ion-note color="medium">Entre com seu e-mail para editar o repertório.</ion-note>
+          <ion-button (click)="fechar()">Fechar</ion-button>
+        }
+      </div>
+    </ion-content>
+  </ng-template>
+</ion-modal>
+<!-- Tela de repertório: lista louvores e concentra cifra, transposição e mídia. -->

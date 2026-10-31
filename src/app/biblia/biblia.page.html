@@ -1,0 +1,225 @@
+<ion-header class="biblia-header">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="/home" text="" aria-label="Voltar"></ion-back-button>
+    </ion-buttons>
+    @if (apiConectada() || versoes().length) {
+      <button id="seletor-versao-api" class="seletor-versao-trigger" aria-label="Selecionar versão bíblica">
+        {{ nomeBibliaSelecionada() }} <ion-icon name="chevron-down-outline"></ion-icon>
+      </button>
+      <ion-popover #menuVersoes trigger="seletor-versao-api" triggerAction="click" side="bottom" alignment="center" class="versoes-api-popover">
+        <ng-template>
+          <div class="versoes-api-lista">
+            @for (grupo of gruposBiblesApi(); track grupo.chave) {
+              <h2 class="versoes-api-grupo">{{ grupo.titulo }}</h2>
+              @for (opcao of grupo.versoes; track opcao.id) {
+                <button class="versoes-api-opcao" [class.selecionada]="opcao.tipo === 'api' ? !modoLocal() && opcao.id === bibleApiSelecionada() : modoLocal() && opcao.sigla === versaoSelecionada()" (click)="selecionarOpcaoVersao(opcao); menuVersoes.dismiss()">
+                  {{ opcao.nome }}
+                  @if (opcao.tipo === 'api' && biblesComOffline().has(opcao.id)) { <span class="indicador-offline">· offline</span> }
+                  @if (opcao.tipo === 'local') { <span class="indicador-offline">· salva neste aparelho</span> }
+                </button>
+              }
+            }
+          </div>
+        </ng-template>
+      </ion-popover>
+    } @else {
+      <ion-title>Bíblia</ion-title>
+    }
+    <ion-buttons slot="end">
+      <ion-button fill="clear" (click)="falarCapitulo()" [attr.aria-label]="falando() ? 'Parar leitura em voz alta' : 'Ouvir capítulo'">
+        <ion-icon slot="icon-only" [name]="falando() ? 'pause-outline' : 'volume-high-outline'"></ion-icon>
+      </ion-button>
+      <ion-button fill="clear" (click)="alternarOpcoes()" aria-label="Mais opções">
+        <ion-icon slot="icon-only" name="ellipsis-vertical"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+
+  @if (opcoesAbertas()) {
+    <section class="biblia-opcoes">
+      <h2>Conectar API.Bible</h2>
+      <ion-input label="Chave da API.Bible" labelPlacement="stacked" type="password" autocomplete="off" [ngModel]="chaveApi()" (ngModelChange)="chaveApi.set($event)" placeholder="Cole sua chave aqui"></ion-input>
+      <ion-button size="small" (click)="conectarApi()" [disabled]="validandoApi() || !chaveApi().trim()">
+        @if (validandoApi()) { <ion-spinner name="crescent" slot="start"></ion-spinner> }
+        {{ validandoApi() ? 'Conectando...' : (apiConectada() ? 'Atualizar versões' : 'Salvar e conectar') }}
+      </ion-button>
+      <ion-button size="small" fill="outline" (click)="arquivoBiblia.click(); opcoesAbertas.set(false)" [disabled]="carregando()">
+        <ion-icon slot="start" name="cloud-download-outline"></ion-icon>Importar versão JSON
+      </ion-button>
+      <ion-note class="aviso-chave">O app cria a sigla e organiza livros, capítulos e versículos. Informe o nome da versão no JSON ou no nome do arquivo. Formatos de catálogo com livros, capítulos e versículos em listas também são aceitos.</ion-note>
+      @if (apiConectada() && modoLocal()) {
+        <ion-button size="small" fill="clear" (click)="voltarParaApi()">Voltar à Bíblia online</ion-button>
+      }
+      @if (apiConectada() && versoes().length) {
+        <div class="versoes-locais-menu">
+          <span>Versões importadas neste aparelho</span>
+          @for (versao of versoes(); track versao.sigla) {
+            <ion-button size="small" fill="clear" (click)="selecionarVersaoLocal(versao.sigla)">{{ versao.sigla }} · {{ versao.nome }}</ion-button>
+          }
+        </div>
+      }
+      <ion-note class="aviso-chave" color="warning">A chave fica neste navegador. O acesso pela API exige internet.</ion-note>
+    </section>
+  }
+</ion-header>
+
+<input #arquivoBiblia type="file" accept=".json,application/json" hidden (change)="importarArquivo($event)">
+
+<ion-content [fullscreen]="true" class="biblia-content">
+  @if (erro(); as texto) { <ion-note class="biblia-aviso" color="danger">{{ texto }}</ion-note> }
+  @if (aviso(); as texto) { <ion-note class="biblia-aviso" color="success">{{ texto }}</ion-note> }
+
+  <!-- A pesquisa abrange a versão inteira e pode paginar resultados da API. -->
+  @if (apiConectada() || versoes().length) {
+    <section class="pesquisa-biblia">
+      <ion-input type="search" label="Pesquisar na Bíblia" labelPlacement="stacked" placeholder="Digite uma palavra ou expressão" [ngModel]="termoPesquisa()" (ngModelChange)="termoPesquisa.set($event)" (keyup.enter)="pesquisarPalavra()"></ion-input>
+      <ion-button (click)="pesquisarPalavra()" [disabled]="pesquisando() || !termoPesquisa().trim()" aria-label="Pesquisar">
+        @if (pesquisando()) { <ion-spinner name="crescent" slot="icon-only"></ion-spinner> }
+        @else { <ion-icon slot="icon-only" name="search-outline"></ion-icon> }
+      </ion-button>
+      @if (termoPesquisa()) { <ion-button fill="clear" (click)="limparPesquisa()" aria-label="Limpar pesquisa">×</ion-button> }
+    </section>
+    @if (pesquisaExecutada()) {
+      <section class="resultados-pesquisa" aria-live="polite">
+        @if (pesquisando()) { <div class="biblia-carregando"><ion-spinner name="crescent"></ion-spinner><span>Pesquisando...</span></div> }
+        @else if (resultadosPesquisa().length) {
+          <p class="resumo-pesquisa">{{ totalResultadosPesquisa() }} resultado(s) para “{{ termoPesquisa() }}”</p>
+          @for (resultado of resultadosPesquisa(); track resultado.referencia + resultado.texto) {
+            <button class="resultado-pesquisa" type="button" (click)="abrirResultadoPesquisa(resultado)">
+              <strong>{{ resultado.referencia }}</strong><span>{{ resultado.texto }}</span>
+            </button>
+          }
+          @if (resultadosPesquisa().length < totalResultadosPesquisa()) {
+            <ion-button fill="outline" (click)="carregarMaisResultados()" [disabled]="pesquisando()">Carregar mais resultados</ion-button>
+          }
+        } @else {
+          <p class="resumo-pesquisa">Nenhum resultado para “{{ termoPesquisa() }}”.</p>
+        }
+      </section>
+    }
+  }
+
+  <!-- Controles e texto do capítulo online; no modo local, os dados vêm do arquivo importado. -->
+  @if (apiConectada() && !modoLocal()) {
+    <div class="biblia-seletores">
+      <ion-select class="seletor-livro" aria-label="Livro" interface="popover" [ngModel]="livroApiSelecionado()" (ngModelChange)="selecionarLivroApi($event)">
+        @for (livro of livrosApi(); track livro.id) {
+          <ion-select-option [value]="livro.id">{{ livro.nameLocal || livro.name }}</ion-select-option>
+        }
+      </ion-select>
+      <ion-select class="seletor-capitulo" aria-label="Capítulo" interface="popover" [ngModel]="capituloApiSelecionado()" (ngModelChange)="selecionarCapituloApi($event)">
+        @for (capitulo of capitulosApi(); track capitulo.id) {
+          <ion-select-option [value]="capitulo.id">{{ capitulo.number }}</ion-select-option>
+        }
+      </ion-select>
+    </div>
+
+    @if (!pesquisaExecutada()) {
+    @if (carregandoApi()) {
+      <div class="biblia-carregando"><ion-spinner name="crescent"></ion-spinner><span>Carregando capítulo...</span></div>
+    } @else if (versiculosApi().length) {
+      <article class="biblia-leitura">
+        <div class="acao-offline">
+          @if (capituloJaSalvoOffline()) {
+            <ion-button size="small" fill="outline" (click)="removerCapituloOffline()">Remover cópia offline</ion-button>
+          } @else {
+            <ion-button size="small" fill="outline" (click)="salvarCapituloOffline()" [disabled]="salvandoOffline()">
+              <ion-icon slot="start" name="cloud-download-outline"></ion-icon>
+              {{ salvandoOffline() ? 'Salvando...' : 'Salvar capítulo offline' }}
+            </ion-button>
+          }
+          <span>Até 499 versículos por versão; o cache expira em 14 dias</span>
+        </div>
+        @for (titulo of titulosApi(); track $index) { <h2 class="titulo-secao">{{ titulo }}</h2> }
+        @for (versiculo of versiculosApi(); track versiculo.numero) {
+          <p class="versiculo"
+            [class.versiculo-selecionado]="versiculoSelecionado() === versiculo.numero"
+            [style.backgroundColor]="versiculoSelecionado() === versiculo.numero ? null : corVersiculo(versiculo.numero)"
+            [style.color]="versiculoSelecionado() === versiculo.numero ? null : corTextoVersiculo(versiculo.numero)"
+            (click)="selecionarVersiculo(versiculo.numero, versiculo.texto)">
+            <strong>{{ versiculo.numero }}</strong> {{ versiculo.texto }}
+          </p>
+        }
+        @if (copyrightApi()) { <ion-note class="copyright-biblia">{{ copyrightApi() }}</ion-note> }
+      </article>
+    } @else {
+      <div class="biblia-vazia"><ion-spinner name="crescent"></ion-spinner><p>Escolha um livro e capítulo disponíveis na sua conta.</p></div>
+    }
+    }
+  } @else if (capituloAtual(); as capitulo) {
+    <div class="biblia-seletores">
+      <ion-select class="seletor-livro" aria-label="Livro" interface="popover" [ngModel]="livroSelecionado()" (ngModelChange)="selecionarLivro($event)">
+        @for (livro of versaoAtual()?.livros ?? []; track livro.nome) { <ion-select-option [value]="livro.nome">{{ livro.nome }}</ion-select-option> }
+      </ion-select>
+      <ion-select class="seletor-capitulo" aria-label="Capítulo" interface="popover" [ngModel]="capituloSelecionado()" (ngModelChange)="selecionarCapitulo($event)">
+        @for (item of capitulos(); track item.numero) { <ion-select-option [value]="item.numero">{{ item.numero }}</ion-select-option> }
+      </ion-select>
+    </div>
+    @if (!pesquisaExecutada()) { <article class="biblia-leitura">
+      <h1>{{ livroAtual()?.nome }} {{ capitulo.numero }}</h1>
+      @for (versiculo of versiculosVisiveis(); track versiculo.numero) {
+        <p class="versiculo"
+          [class.versiculo-selecionado]="versiculoSelecionado() === versiculo.numero"
+          [style.backgroundColor]="versiculoSelecionado() === versiculo.numero ? null : corVersiculo(versiculo.numero)"
+          (click)="selecionarVersiculo(versiculo.numero, versiculo.texto)">
+          <strong>{{ versiculo.numero }}</strong> {{ versiculo.texto }}
+        </p>
+      } @empty { <p class="biblia-vazia">Nenhum versículo corresponde à busca.</p> }
+    </article> }
+  } @else {
+    <section class="biblia-inicio">
+      <div class="biblia-icone"><ion-icon name="book-outline"></ion-icon></div>
+      <h2>Conecte a Bíblia</h2>
+      <p>Abra o menu ⋮ para configurar sua chave da API.Bible ou importar uma versão JSON autorizada.</p>
+      @if (carregando()) { <ion-spinner name="crescent"></ion-spinner> }
+    </section>
+  }
+</ion-content>
+
+@if (versiculoSelecionado() !== null) {
+  <!-- Painel contextual para destaque, notas e compartilhamento do versículo selecionado. -->
+  <div class="painel-versiculo-fundo" (click)="fecharPainelVersiculo()"></div>
+  <section class="painel-versiculo" aria-label="Ações do versículo">
+    <div class="alca-painel"></div>
+    @if (paletaCoresVisivel()) {
+    <div class="cores-destaque" aria-label="Cores para destacar o versículo">
+      <button class="cor-remover" aria-label="Remover destaque" (click)="aplicarDestaque(null)">×</button>
+      @for (cor of coresDestaque; track cor.valor) {
+        <button class="amostra-cor" [class.selecionada]="corVersiculo(versiculoSelecionado() ?? 0) === cor.valor" [style.backgroundColor]="cor.valor" [attr.aria-label]="'Destacar com ' + cor.nome" (click)="aplicarDestaque(cor.valor); paletaCoresVisivel.set(false)"></button>
+      }
+      <label class="seletor-cor-personalizada" [style.backgroundColor]="corPersonalizada()" aria-label="Escolher uma cor personalizada" title="Escolher uma cor personalizada">
+        <input type="color" [value]="corPersonalizada()" (input)="selecionarCorPersonalizada($event)" aria-label="Selecionar cor personalizada">
+        <span>＋</span>
+      </label>
+    </div>
+    }
+    <div class="acoes-versiculo">
+      <ion-button fill="clear" [attr.aria-label]="paletaCoresVisivel() ? 'Fechar cores do destaque' : 'Escolher cor do destaque'" (click)="destacarComCorSelecionada()"><ion-icon slot="icon-only" name="pencil-outline"></ion-icon></ion-button>
+      <ion-button fill="clear" aria-label="Adicionar anotação" (click)="abrirNota()"><ion-icon slot="icon-only" name="chatbubble-outline"></ion-icon></ion-button>
+      <ion-button fill="clear" aria-label="Copiar versículo" (click)="copiarVersiculo()"><ion-icon slot="icon-only" name="copy-outline"></ion-icon></ion-button>
+      <ion-button fill="clear" aria-label="Compartilhar versículo" (click)="compartilharVersiculo()"><ion-icon slot="icon-only" name="share-social-outline"></ion-icon></ion-button>
+      <ion-button fill="clear" aria-label="Salvar versículo como imagem" (click)="baixarImagemVersiculo()"><ion-icon slot="icon-only" name="image-outline"></ion-icon></ion-button>
+    </div>
+    @if (editandoNota()) {
+      <div class="editor-nota">
+        <ion-textarea label="Anotação deste versículo" labelPlacement="stacked" autoGrow="true" [ngModel]="notaRascunho()" (ngModelChange)="notaRascunho.set($event)" placeholder="Escreva sua anotação"></ion-textarea>
+        <ion-button size="small" (click)="salvarNota()">Salvar anotação</ion-button>
+      </div>
+    } @else if (versiculoSelecionado() !== null && notas()[chaveVersiculo(versiculoSelecionado() ?? 0)]) {
+      <p class="nota-salva">{{ notas()[chaveVersiculo(versiculoSelecionado() ?? 0)] }}</p>
+    }
+  </section>
+}
+
+@if (apiConectada() && !modoLocal() && versiculosApi().length) {
+  <div class="navegacao-lateral">
+    <ion-button class="seta-pagina anterior" [disabled]="!apiCapituloDisponivel(-1) || carregandoApi()" (click)="navegarCapituloApi(-1)" aria-label="Capítulo anterior"><ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon></ion-button>
+    <ion-button class="seta-pagina proxima" [disabled]="!apiCapituloDisponivel(1) || carregandoApi()" (click)="navegarCapituloApi(1)" aria-label="Próximo capítulo"><ion-icon slot="icon-only" name="chevron-forward-outline"></ion-icon></ion-button>
+  </div>
+} @else if (capituloAtual()) {
+  <div class="navegacao-lateral">
+    <ion-button class="seta-pagina anterior" [disabled]="!anteriorDisponivel()" (click)="navegarCapitulo(-1)" aria-label="Capítulo anterior"><ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon></ion-button>
+    <ion-button class="seta-pagina proxima" [disabled]="!proximoDisponivel()" (click)="navegarCapitulo(1)" aria-label="Próximo capítulo"><ion-icon slot="icon-only" name="chevron-forward-outline"></ion-icon></ion-button>
+  </div>
+}

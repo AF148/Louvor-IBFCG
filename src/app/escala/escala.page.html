@@ -1,0 +1,630 @@
+<ion-header [translucent]="true">
+  <ion-toolbar>
+    <ion-title>Escala</ion-title>
+    <ion-buttons slot="end">
+      @if (podeEditar()) {
+        <ion-button fill="clear" (click)="arquivoPlanilha.click()" [disabled]="lendoPlanilha()" aria-label="Importar planilha">
+          <ion-icon slot="icon-only" name="document-attach-outline"></ion-icon>
+        </ion-button>
+        <ion-button fill="clear" (click)="abrirNovo()" aria-label="Novo culto">
+          <ion-icon slot="icon-only" name="add-outline"></ion-icon>
+        </ion-button>
+      }
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<!-- Disparador escondido: aceita Excel (.xlsx/.xls) e CSV. -->
+<input
+  #arquivoPlanilha
+  type="file"
+  accept=".xlsx,.xls,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
+  hidden
+  (change)="escolherPlanilha($event)"
+>
+
+<ion-content [fullscreen]="true">
+  <ion-header collapse="condense">
+    <ion-toolbar>
+      <ion-title size="large">Escala</ion-title>
+    </ion-toolbar>
+  </ion-header>
+
+  <div class="toolbar-acao">
+    <ion-segment [(ngModel)]="aba" (ionChange)="aba.set($any($event.detail.value))">
+      <ion-segment-button value="lista">
+        <ion-icon name="list-outline"></ion-icon>
+        <ion-label>Cultos</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="planilha">
+        <ion-icon name="document-attach-outline"></ion-icon>
+        <ion-label>Planilha</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="equipe">
+        <ion-icon name="people-outline"></ion-icon>
+        <ion-label>Equipe</ion-label>
+      </ion-segment-button>
+      <ion-segment-button value="calendario">
+        <ion-icon name="calendar-outline"></ion-icon>
+        <ion-label>Calendário</ion-label>
+      </ion-segment-button>
+    </ion-segment>
+  </div>
+
+  @if (aba() === 'lista') {
+    @if (podeEditar()) {
+    <div class="toolbar-acao selecao-em-lote">
+      @if (modoSelecaoCultos()) {
+        <ion-checkbox
+          [checked]="todosCultosSelecionados()"
+          (ionChange)="alternarTodosCultos($any($event.detail).checked)"
+          aria-label="Selecionar todos os cultos"
+        ></ion-checkbox>
+        <ion-label>Selecionar todos os cultos</ion-label>
+      }
+      <ion-button fill="clear" [color]="modoSelecaoCultos() && cultosSelecionados().size ? 'danger' : 'medium'" (click)="acionarExclusaoCultos()" [attr.aria-label]="modoSelecaoCultos() && cultosSelecionados().size ? 'Excluir cultos selecionados' : 'Selecionar cultos para excluir'">
+        <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+      </ion-button>
+    </div>
+    }
+    <!-- Resultado da importação de planilha (visível sem depender do modal) -->
+    @if (resultadoPlanilha(); as resultado) {
+      <ion-note class="resultado-planilha" [color]="resultadoPlanilhaErro() ? 'danger' : 'success'">
+        <span>{{ resultado }}</span>
+        <ion-button fill="clear" size="small" (click)="resultadoPlanilha.set(null)" aria-label="Fechar aviso">
+          <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+        </ion-button>
+      </ion-note>
+    }
+
+    <!-- Cultos Futuros -->
+    @if (cultosFuturos().length) {
+      <ion-list>
+        <ion-item lines="none" class="secao-lista">
+          <ion-label><strong>Próximos cultos</strong></ion-label>
+        </ion-item>
+        @for (c of cultosFuturos(); track c.id) {
+          <ion-item-sliding>
+            <ion-item button (click)="abrirEdicao(c)">
+              @if (modoSelecaoCultos()) {
+                <ion-checkbox
+                  slot="start"
+                  [checked]="cultosSelecionados().has(c.id)"
+                  (click)="$event.stopPropagation()"
+                  (ionChange)="alternarSelecaoCulto(c.id, $any($event.detail).checked)"
+                  [attr.aria-label]="'Selecionar ' + c.titulo"
+                ></ion-checkbox>
+              }
+              <ion-icon slot="start" name="calendar-outline" color="primary"></ion-icon>
+              <ion-label>
+                <h3>{{ c.titulo }}</h3>
+                <div class="sub-linha">
+                  <ion-note>{{ formatarDataExtenso(c.data) }} às {{ c.hora }}</ion-note>
+                  @if (c.local) { <ion-note>· {{ c.local }}</ion-note> }
+                </div>
+                <div class="sub-linha">
+                  <ion-badge [color]="corStatus(c.status)">{{ c.status }}</ion-badge>
+                </div>
+              </ion-label>
+              @if (podeEditar()) {
+                <ion-button slot="end" fill="clear" (click)="abrirEdicao(c); $event.stopPropagation()" aria-label="Editar culto">
+                  <ion-icon slot="icon-only" name="create-outline"></ion-icon>
+                </ion-button>
+                <ion-button slot="end" fill="clear" color="danger" (click)="remover(c); $event.stopPropagation()" aria-label="Excluir culto">
+                  <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+                </ion-button>
+              }
+            </ion-item>
+            @if (podeEditar()) {
+            <ion-item-options side="end">
+              <ion-item-option (click)="abrirEdicao(c)">
+                <ion-icon slot="icon-only" name="create-outline"></ion-icon>
+              </ion-item-option>
+              <ion-item-option color="danger" (click)="remover(c)">
+                <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+              </ion-item-option>
+            </ion-item-options>
+            }
+          </ion-item-sliding>
+        }
+      </ion-list>
+    }
+
+    <!-- Cultos Passados -->
+    @if (cultosPassados().length) {
+      <ion-list>
+        <ion-item lines="none" class="secao-lista">
+          <ion-label><strong>Cultos anteriores</strong></ion-label>
+        </ion-item>
+        @for (c of cultosPassados(); track c.id) {
+          <ion-item-sliding>
+            <ion-item button (click)="abrirEdicao(c)">
+              @if (modoSelecaoCultos()) {
+                <ion-checkbox
+                  slot="start"
+                  [checked]="cultosSelecionados().has(c.id)"
+                  (click)="$event.stopPropagation()"
+                  (ionChange)="alternarSelecaoCulto(c.id, $any($event.detail).checked)"
+                  [attr.aria-label]="'Selecionar ' + c.titulo"
+                ></ion-checkbox>
+              }
+              <ion-icon slot="start" name="calendar-outline" color="medium"></ion-icon>
+              <ion-label>
+                <h3>{{ c.titulo }}</h3>
+                <div class="sub-linha">
+                  <ion-note>{{ formatarDataExtenso(c.data) }} às {{ c.hora }}</ion-note>
+                </div>
+                <div class="sub-linha">
+                  <ion-badge color="medium">{{ c.status }}</ion-badge>
+                </div>
+              </ion-label>
+              @if (podeEditar()) {
+                <ion-button slot="end" fill="clear" (click)="abrirEdicao(c); $event.stopPropagation()" aria-label="Editar culto">
+                  <ion-icon slot="icon-only" name="create-outline"></ion-icon>
+                </ion-button>
+                <ion-button slot="end" fill="clear" color="danger" (click)="remover(c); $event.stopPropagation()" aria-label="Excluir culto">
+                  <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+                </ion-button>
+              }
+            </ion-item>
+            @if (podeEditar()) {
+            <ion-item-options side="end">
+              <ion-item-option (click)="abrirEdicao(c)">
+                <ion-icon slot="icon-only" name="create-outline"></ion-icon>
+              </ion-item-option>
+              <ion-item-option color="danger" (click)="remover(c)">
+                <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+              </ion-item-option>
+            </ion-item-options>
+            }
+          </ion-item-sliding>
+        }
+      </ion-list>
+    }
+
+    @if (!cultosFuturos().length && !cultosPassados().length) {
+      <div class="vazio">
+        <ion-icon name="calendar-outline"></ion-icon>
+        <p>Nenhum culto agendado.</p>
+        @if (podeEditar()) {
+          <ion-button (click)="abrirNovo()">Agendar primeiro culto</ion-button>
+        }
+      </div>
+    }
+  } @else if (aba() === 'planilha') {
+    <section class="planilha-aba">
+      @if (resultadoPlanilha(); as resultado) {
+        <ion-note class="resultado-planilha" [color]="resultadoPlanilhaErro() ? 'danger' : 'success'">{{ resultado }}</ion-note>
+      }
+      <div class="planilha-aba-cabecalho">
+        <div>
+          <h2>{{ nomePlanilha() }}</h2>
+          <p>Planilha guardada no aplicativo. Abra outro arquivo para substituí-la.</p>
+        </div>
+        @if (podeEditar()) {
+          <ion-button fill="outline" (click)="arquivoPlanilha.click()" [disabled]="lendoPlanilha()">
+            <ion-icon slot="start" name="document-attach-outline"></ion-icon>
+            {{ previaPlanilha() ? 'Abrir outra' : 'Abrir planilha' }}
+          </ion-button>
+          @if (previaPlanilha(); as previa) {
+            @if (editandoPlanilha()) {
+              <ion-button fill="outline" (click)="cancelarEdicaoPlanilha()">Cancelar edição</ion-button>
+              <ion-button (click)="salvarEdicaoPlanilha()"><ion-icon slot="start" name="save-outline"></ion-icon>Salvar alterações</ion-button>
+            } @else {
+              <ion-button fill="outline" (click)="iniciarEdicaoPlanilha(previa.tabela.linhas)">
+                <ion-icon slot="start" name="create-outline"></ion-icon>Editar planilha
+              </ion-button>
+            }
+          }
+          @if (previaPlanilha()) {
+            <ion-button fill="clear" color="danger" (click)="pedirExclusaoPlanilha()" aria-label="Excluir planilha aberta">
+              <ion-icon slot="start" name="trash-outline"></ion-icon>Excluir planilha
+            </ion-button>
+          }
+          <ion-button fill="clear" [color]="modoSelecaoCultos() && cultosSelecionados().size ? 'danger' : 'medium'" (click)="acionarExclusaoCultos()" [attr.aria-label]="modoSelecaoCultos() && cultosSelecionados().size ? 'Excluir cultos selecionados' : 'Selecionar cultos para excluir'">
+            <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+          </ion-button>
+        }
+      </div>
+      @if (lendoPlanilha()) {
+        <div class="planilha-carregando"><ion-spinner name="crescent"></ion-spinner><span>Lendo arquivo...</span></div>
+      } @else if (previaPlanilha(); as previa) {
+        <p class="explicacao">
+          {{ previa.linhas.length }} culto(s) encontrados.
+          @if (previa.ignoradas) { {{ previa.ignoradas }} linha(s) ignorada(s) sem data/hora válidas. }
+        </p>
+        @if (previa.colunasIgnoradas.length) {
+          <p class="dica-media">Colunas não interpretadas: {{ previa.colunasIgnoradas.join(', ') }}.</p>
+        }
+        <div
+          class="planilha-preview-scroll"
+          [class.planilha-editando]="editandoPlanilha()"
+          (pointerdown)="iniciarArrastePlanilha($event)"
+          (pointermove)="arrastarPlanilha($event)"
+          (pointerup)="encerrarArrastePlanilha($event)"
+          (pointercancel)="encerrarArrastePlanilha($event)"
+        >
+          <table class="planilha-preview">
+            <thead><tr><th>@if (modoSelecaoCultos()) { <ion-checkbox [checked]="todosCultosDaPlanilhaSelecionados()" (ionChange)="alternarTodosCultosDaPlanilha($any($event.detail).checked)" aria-label="Selecionar todos os cultos da planilha"></ion-checkbox> }</th>@for (cabecalho of previa.tabela.cabecalhos; track $index) { <th [class.coluna-ministracao]="isColunaMinistracao(cabecalho)">{{ cabecalho }}</th> }<th>Ações</th></tr></thead>
+            <tbody>
+              @for (linha of previa.tabela.linhas; track $index; let i = $index) {
+                <tr>
+                  <td>@if (modoSelecaoCultos()) { <ion-checkbox [checked]="cultosSelecionados().has(previa.linhas[i].culto.id)" (ionChange)="alternarSelecaoCulto(previa.linhas[i].culto.id, $any($event.detail).checked)" [attr.aria-label]="'Selecionar culto da linha ' + (i + 1)"></ion-checkbox> }</td>
+                  @for (celula of linha; track $index; let coluna = $index) {
+                    <td [class.coluna-ministracao]="isColunaMinistracao(previa.tabela.cabecalhos[coluna])">
+                      @if (editandoPlanilha()) {
+                        <ion-input class="celula-editavel" [(ngModel)]="previa.tabela.linhas[i][coluna]" [name]="'celula-' + i + '-' + coluna"></ion-input>
+                      } @else { {{ celula || '—' }} }
+                    </td>
+                  }
+                  <td class="acoes-planilha">
+                    @if (podeEditar()) {
+                      <ion-button fill="clear" size="small" [disabled]="editandoPlanilha()" (click)="abrirEdicao(previa.linhas[i].culto)" aria-label="Editar culto da linha">
+                        <ion-icon slot="icon-only" name="create-outline"></ion-icon>
+                      </ion-button>
+                      <ion-button fill="clear" size="small" color="danger" [disabled]="editandoPlanilha()" (click)="remover(previa.linhas[i].culto)" aria-label="Excluir culto da linha">
+                        <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+                      </ion-button>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @if (nomesSemCadastro(previa).length) {
+          <p class="dica-media">Sem cadastro em Participantes: {{ nomesSemCadastro(previa).join(', ') }}. Cadastre essas pessoas para atribuí-las à equipe.</p>
+        }
+        <div class="rodape-modal">
+          @if (!podeEditar()) {
+            <ion-note>Somente administradores podem importar cultos.</ion-note>
+          } @else if (!planilhaImportada()) {
+            <ion-button (click)="confirmarImportacao()" [disabled]="importandoPlanilha()">
+              @if (importandoPlanilha()) { <ion-spinner name="crescent"></ion-spinner> } @else { Importar cultos }
+            </ion-button>
+          } @else {
+            <ion-note color="success">Planilha importada.</ion-note>
+          }
+        </div>
+      } @else {
+        <div class="vazio">
+          <ion-icon name="document-attach-outline"></ion-icon>
+          <p>Nenhuma planilha aberta. Selecione um arquivo para ver os dados aqui.</p>
+          @if (podeEditar()) {
+            <ion-button (click)="arquivoPlanilha.click()">Abrir planilha</ion-button>
+          }
+        </div>
+      }
+    </section>
+  } @else if (aba() === 'calendario') {
+    <section class="calendario">
+      <div class="toolbar-acao selecao-em-lote">
+        @if (modoSelecaoCultos()) {
+          <ion-checkbox
+            [checked]="todosCultosSelecionados()"
+            (ionChange)="alternarTodosCultos($any($event.detail).checked)"
+            aria-label="Selecionar todos os cultos"
+          ></ion-checkbox>
+          <ion-label>Selecionar todos os cultos</ion-label>
+        }
+        @if (podeEditar()) {
+          <ion-button fill="clear" [color]="modoSelecaoCultos() && cultosSelecionados().size ? 'danger' : 'medium'" (click)="acionarExclusaoCultos()" [attr.aria-label]="modoSelecaoCultos() && cultosSelecionados().size ? 'Excluir cultos selecionados' : 'Selecionar cultos para excluir'">
+            <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+          </ion-button>
+        }
+      </div>
+      <div class="calendario-cabecalho">
+        <ion-button fill="clear" (click)="mudarMes(-1)" aria-label="Mês anterior"><ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon></ion-button>
+        <h2>{{ tituloMes() }}</h2>
+        <ion-button fill="clear" (click)="mudarMes(1)" aria-label="Próximo mês"><ion-icon slot="icon-only" name="chevron-forward-outline"></ion-icon></ion-button>
+      </div>
+      <div class="calendario-grade">
+        @for (dia of ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']; track dia) {
+          <div class="calendario-semana">{{ dia }}</div>
+        }
+        @for (dia of diasCalendario(); track dia.data) {
+          <button type="button" class="calendario-dia" [class.fora-mes]="!dia.noMes" [class.hoje]="dia.hoje" [class.selecionado]="diaSelecionado(dia.data)" (click)="selecionarDia(dia)">
+            <span>{{ dia.numero }}</span>
+            @if (dia.quantidade) { <span class="marcador-culto">{{ dia.quantidade }}</span> }
+          </button>
+        }
+      </div>
+      <div class="calendario-dia-detalhe">
+        <div class="calendario-detalhe-cabecalho">
+          <h3>{{ formatarDataExtenso(dataSelecionada()) }}</h3>
+          @if (podeEditar()) {
+            <ion-button size="small" (click)="abrirNovoNaData(dataSelecionada())"><ion-icon slot="start" name="add-outline"></ion-icon>Novo culto</ion-button>
+          }
+        </div>
+        @if (cultosDoDia().length) {
+          <ion-list>
+            @for (c of cultosDoDia(); track c.id) {
+              <ion-item button (click)="abrirEdicao(c)">
+            @if (modoSelecaoCultos()) {
+              <ion-checkbox
+                slot="start"
+                [checked]="cultosSelecionados().has(c.id)"
+                (click)="$event.stopPropagation()"
+                (ionChange)="alternarSelecaoCulto(c.id, $any($event.detail).checked)"
+                [attr.aria-label]="'Selecionar ' + c.titulo"
+              ></ion-checkbox>
+            }
+            <ion-icon slot="start" name="calendar-outline" color="primary"></ion-icon>
+                <ion-label><h3>{{ c.titulo }}</h3><p>{{ c.hora }} · {{ c.status }}{{ c.local ? ' · ' + c.local : '' }}</p></ion-label>
+                <ion-icon slot="end" name="chevron-forward-outline"></ion-icon>
+              </ion-item>
+            }
+          </ion-list>
+        } @else {
+          <p class="calendario-vazio">Nenhum culto nesta data.</p>
+        }
+      </div>
+    </section>
+  } @else {
+    <!-- Aba Equipe -->
+    @for (papel of ['instrumentista', 'cantor', 'operador', 'som', 'ministrante', 'outro']; track papel) {
+      @if (porPapel()[papel]?.length) {
+        <ion-card class="card-equipe">
+          <ion-card-header>
+            <ion-label class="card-title-custom">
+              <ion-icon [name]="iconePapel(papel)" slot="start"></ion-icon>
+              {{ labelPapel(papel) }}
+            </ion-label>
+          </ion-card-header>
+          <ion-card-content>
+            @for (p of porPapel()[papel]; track p.id) {
+              <div class="membro-equipe">
+                <ion-avatar>
+                  <ion-icon name="person-circle-outline"></ion-icon>
+                </ion-avatar>
+                <div>
+                  <strong>{{ p.nome }}</strong>
+                  @if (p.telefone) {
+                    <br><ion-note>{{ p.telefone }}</ion-note>
+                  }
+                </div>
+              </div>
+            }
+          </ion-card-content>
+        </ion-card>
+      }
+    }
+    @if (!participantes().length) {
+      <div class="vazio">
+        <ion-icon name="people-outline"></ion-icon>
+        <p>Nenhum participante cadastrado.</p>
+        <ion-button routerLink="/participantes">Gerenciar equipe</ion-button>
+      </div>
+    }
+  }
+</ion-content>
+
+<!-- Modal Novo/Editar Culto -->
+<ion-modal [isOpen]="modalAberto()" (didDismiss)="fechar()">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>{{ podeEditar() ? (emEdicao() ? 'Editar culto' : 'Novo culto') : 'Culto' }}</ion-title>
+        <ion-buttons slot="end">
+          <ion-button fill="clear" (click)="fechar()">
+            <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content class="ion-padding">
+      <form #form="ngForm" (ngSubmit)="salvar()">
+        <ion-item>
+          <ion-label position="stacked">Título do culto</ion-label>
+          <ion-select
+            [ngModel]="rascunho().tituloOpcao"
+            (ngModelChange)="aoEscolherTitulo($event)"
+            name="tituloOpcao"
+            interface="popover"
+            placeholder="Escolha o título"
+          >
+            <ion-select-option value="celebracao">Culto da Celebração (domingo)</ion-select-option>
+            <ion-select-option value="libertacao">Culto da Libertação (quarta-feira)</ion-select-option>
+            <ion-select-option value="outro">Outro (digitar)</ion-select-option>
+          </ion-select>
+        </ion-item>
+
+        @if (rascunho().tituloOpcao === 'outro') {
+          <ion-item>
+            <ion-label position="stacked">Outro título</ion-label>
+            <ion-input [(ngModel)]="rascunho().titulo" name="titulo" required placeholder="Ex.: Culto de Domingo"></ion-input>
+          </ion-item>
+        }
+
+        <ion-item>
+          <ion-label position="stacked">Vocal</ion-label>
+          <ion-select
+            [(ngModel)]="rascunho().cantores"
+            name="cantores"
+            multiple
+            interface="popover"
+            placeholder="Selecione o vocal"
+          >
+            @for (c of cantoresDisponiveis(); track c.id) {
+              <ion-select-option [value]="c.id">{{ c.nome }}</ion-select-option>
+            }
+          </ion-select>
+        </ion-item>
+
+        <ion-item>
+          <ion-label position="stacked">Ministrante</ion-label>
+          <ion-select [(ngModel)]="rascunho().ministrante" name="ministrante" interface="popover" placeholder="Selecione o ministrante">
+            @for (p of ministrantesDisponiveis(); track p.id) {
+              <ion-select-option [value]="p.id">{{ p.nome }}</ion-select-option>
+            }
+          </ion-select>
+        </ion-item>
+
+        <ion-item>
+          <ion-label position="stacked">Equipe de mídia</ion-label>
+          <ion-select [(ngModel)]="rascunho().midia" name="midia" multiple interface="popover" placeholder="Selecione quem fará a mídia">
+            @for (p of participantes(); track p.id) {
+              <ion-select-option [value]="p.id">{{ p.nome }}</ion-select-option>
+            }
+          </ion-select>
+        </ion-item>
+
+        <ion-item>
+          <ion-label position="stacked">Equipe de som</ion-label>
+          <ion-select [(ngModel)]="rascunho().som" name="som" multiple interface="popover" placeholder="Selecione quem fará o som">
+            @for (p of participantes(); track p.id) {
+              <ion-select-option [value]="p.id">{{ p.nome }}</ion-select-option>
+            }
+          </ion-select>
+        </ion-item>
+
+        <ion-item>
+          <ion-label position="stacked">Data</ion-label>
+          <ion-input type="date" [(ngModel)]="rascunho().data" name="data" required></ion-input>
+        </ion-item>
+
+        <ion-item>
+          <ion-label position="stacked">Hora</ion-label>
+          <ion-input type="time" [(ngModel)]="rascunho().hora" name="hora" required></ion-input>
+        </ion-item>
+
+        <ion-item>
+          <ion-label position="stacked">Local</ion-label>
+          <ion-input [(ngModel)]="rascunho().local" name="local" placeholder="Opcional"></ion-input>
+        </ion-item>
+
+        <ion-item>
+          <ion-label position="stacked">Status</ion-label>
+          <ion-select [(ngModel)]="rascunho().status" name="status" interface="popover">
+            <ion-select-option value="planejado">Planejado</ion-select-option>
+            <ion-select-option value="confirmado">Confirmado</ion-select-option>
+            <ion-select-option value="realizado">Realizado</ion-select-option>
+          </ion-select>
+        </ion-item>
+
+        <ion-item>
+          <ion-label position="stacked">Observações / Roteiro</ion-label>
+          <ion-textarea [(ngModel)]="rascunho().observacoes" name="observacoes" rows="4" placeholder="Roteiro, notas, etc."></ion-textarea>
+        </ion-item>
+
+        <div class="rodape-modal">
+          @if (podeEditar()) {
+            <ion-button type="button" fill="outline" (click)="fechar()">Cancelar</ion-button>
+            <ion-button type="submit" [disabled]="!form.valid">Salvar</ion-button>
+          } @else {
+            <ion-note color="medium">Somente administradores editam a escala.</ion-note>
+            <ion-button type="button" (click)="fechar()">Fechar</ion-button>
+          }
+        </div>
+      </form>
+    </ion-content>
+  </ng-template>
+</ion-modal>
+
+<!-- Confirmação exclusão -->
+<ion-alert
+  [isOpen]="!!cultoExcluir()"
+  header="Excluir culto"
+  message="Tem certeza que deseja excluir este culto?"
+  [buttons]="[
+    { text: 'Cancelar', role: 'cancel', handler: () => cancelarExclusao() },
+    { text: 'Excluir', role: 'destructive', handler: () => confirmarExclusao() }
+  ]"
+></ion-alert>
+
+<ion-alert
+  [isOpen]="confirmarExclusaoLote()"
+  header="Excluir cultos"
+  [message]="'Excluir ' + cultosSelecionados().size + ' culto(s) selecionado(s)? Esta ação não pode ser desfeita.'"
+  [buttons]="[
+    { text: 'Cancelar', role: 'cancel', handler: () => confirmarExclusaoLote.set(false) },
+    { text: 'Excluir', role: 'destructive', handler: () => confirmarExclusaoCultosSelecionados() }
+  ]"
+></ion-alert>
+
+<ion-alert
+  [isOpen]="planilhaExcluirAberta()"
+  header="Excluir planilha"
+  message="Remover a planilha aberta desta visualização? Os cultos já importados continuam na escala."
+  [buttons]="[
+    { text: 'Cancelar', role: 'cancel', handler: () => planilhaExcluirAberta.set(false) },
+    { text: 'Excluir planilha', role: 'destructive', handler: () => descartarPlanilha() }
+  ]"
+></ion-alert>
+
+<!-- Prévia da importação de planilha -->
+<ion-modal [isOpen]="false" (didDismiss)="fecharPrevia()">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>Conferir importação</ion-title>
+        <ion-buttons slot="end">
+          <ion-button fill="clear" (click)="fecharPrevia()" aria-label="Fechar">
+            <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content class="ion-padding">
+      @if (previaPlanilha(); as previa) {
+        <p class="explicacao">
+          {{ previa.linhas.length }} culto(s) lido(s) da planilha.
+          @if (previa.ignoradas) {
+            {{ previa.ignoradas }} linha(s) ignorada(s) sem data/hora válidas.
+          }
+        </p>
+
+        @if (previa.colunasIgnoradas.length) {
+          <p class="dica-media">Colunas não interpretadas: {{ previa.colunasIgnoradas.join(', ') }}.</p>
+        }
+
+        <div class="planilha-preview-scroll">
+          <table class="planilha-preview">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Data</th>
+                <th>Hora</th>
+                <th>Culto</th>
+                <th>Local</th>
+                <th>Equipe</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of previa.linhas; track item.culto.id; let i = $index) {
+                <tr>
+                  <td class="numero-linha">{{ i + 1 }}</td>
+                  <td>{{ formatarData(item.culto.data) }}</td>
+                  <td>{{ item.culto.hora }}</td>
+                  <td>{{ item.culto.titulo }}</td>
+                  <td>{{ item.culto.local || '—' }}</td>
+                  <td>{{ item.culto.equipe.length || '—' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        @if (nomesSemCadastro(previa).length) {
+          <p class="dica-media">
+            Sem cadastro em Participantes: {{ nomesSemCadastro(previa).join(', ') }}.
+            Eles serão importados sem equipe; cadastre-os depois para atribuir.
+          </p>
+        }
+
+        <div class="rodape-modal">
+          <ion-button fill="outline" (click)="fecharPrevia()">Cancelar</ion-button>
+          <ion-button (click)="confirmarImportacao()" [disabled]="importandoPlanilha()">
+            @if (importandoPlanilha()) {
+              <ion-spinner name="crescent"></ion-spinner>
+            } @else {
+              Importar
+            }
+          </ion-button>
+        </div>
+      }
+    </ion-content>
+  </ng-template>
+</ion-modal>
+<!-- Tela de escalas: organiza cultos, planilhas e equipes pelas abas da página. -->

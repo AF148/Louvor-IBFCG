@@ -1,0 +1,59 @@
+rules_version = '2';
+
+// Áudio, vídeo dos louvores, mensagens de voz e kits musicais.
+// Limite de 100 MB por arquivo, o que cobre bem um mp4 de culto.
+//
+// Mesma hierarquia de permissões do Firestore:
+//  - leitura: qualquer usuário logado (inclusive o anônimo do app);
+//  - louvores e mensagens: escrita por membro logado (e-mail/senha);
+//  - kits: escrita somente por administrador (doc em admins/{uid}).
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function autenticado() {
+      return request.auth != null;
+    }
+
+    // Quem entrou com e-mail/senha (exclui o acesso anônimo de leitura).
+    function membro() {
+      return autenticado() &&
+        request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    // Administrador: existe um doc em admins/{uid} com este uid.
+    // Acesso ao Firestore pelo Storage (máx. 2 docs por avaliação).
+    function admin() {
+      return autenticado() &&
+        firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid));
+    }
+
+    function tamanhoValido() {
+      return request.resource.size < 100 * 1024 * 1024;
+    }
+
+    match /louvores/{louvorId}/{arquivo} {
+      allow read: if autenticado();
+      allow delete: if membro();
+      allow write: if membro() && tamanhoValido();
+    }
+
+    match /mensagens/{arquivo} {
+      allow read: if autenticado();
+      allow delete: if membro();
+      allow write: if membro() && tamanhoValido();
+    }
+
+    // Kits musicais: uma faixa gravada por arquivo, organizada por kit.
+    // Só administradores gravam ou apagam faixas.
+    match /kits/{kitId}/{arquivo} {
+      allow read: if autenticado();
+      allow delete: if admin();
+      allow write: if admin() && tamanhoValido();
+    }
+
+    // Qualquer outro caminho fica bloqueado.
+    match /{todosOsCaminhos=**} {
+      allow read, write: if false;
+    }
+  }
+}

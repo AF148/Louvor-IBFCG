@@ -1,0 +1,37 @@
+:host {
+  ion-content {
+    --padding-top: 0;
+    --padding-bottom: 0;
+  }
+
+  // Container do vídeo, dimensionado por nós. A largura nunca ultrapassa a
+  // tela nem o espaço vertical reservado (cabeçalho + título + controles).
+  // O iframe do YouTube é ajustado pra preencher isto via JS (ajustarIframe),
+  // porque ele é criado em tempo de execução sem o atributo do Angular.
+  .yt-area {
+    width: min(100%, calc((100vh - 240px) * 16 / 9));
+    aspect-ratio: 16 / 9;
+    margin-inline: auto;
+    background: #000;
+    overflow: hidden;
+  }
+
+  .controles {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 16px 20px;
+    justify-content: center;
+  }
+
+  .aviso {
+    margin: 10px 16px 0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    background: var(--ion-color-warning-tint);
+    color: var(--ion-color-warning-shade);
+  }
+}
+/* Tamanho do vídeo e controles do modal de reprodução compartilhado. */

@@ -1,0 +1,180 @@
+ion-app {
+  --app-rodape-altura: 62px;
+  --app-player-altura: 96px;
+  color: #000;
+  background: #fff;
+}
+
+ion-menu {
+  --background: #fff;
+  --color: #000;
+}
+
+.botao-menu {
+  position: fixed;
+  z-index: 25;
+  top: calc(env(safe-area-inset-top) + 4px);
+  left: 4px;
+  width: 44px;
+  height: 44px;
+  --background: #fff;
+  --color: #000;
+  --border-radius: 50%;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.16);
+}
+
+/* Perfil flutuante no canto superior direito (mesmo visual do botão de menu). */
+.botao-perfil {
+  position: fixed;
+  z-index: 25;
+  top: calc(env(safe-area-inset-top) + 4px);
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #fff;
+  color: #000;
+  text-decoration: none;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.16);
+
+  ion-icon {
+    font-size: 1.9rem;
+  }
+
+  img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+}
+
+ion-menu ion-item.selecionado {
+  --background: #e3f2fd;
+  --color: #1976d2;
+}
+
+.menu-titulo {
+  margin: 18px 0 12px;
+  --min-height: 68px;
+
+  strong { font-size: 1.15rem; }
+  p { margin: 4px 0 0; color: #666; }
+}
+
+.player {
+  --padding-top: 6px;
+  --padding-bottom: 6px;
+  border-top: 1px solid #e0e0e0;
+
+  .player-linha {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .player-info {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+    padding-left: 12px;
+
+    strong {
+      font-size: 0.95rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .player-tom {
+    font-size: 0.75rem;
+    color: #666;
+    background: #f5f5f5;
+    border-radius: 4px;
+    padding: 2px 6px;
+    flex-shrink: 0;
+  }
+
+  .player-controles {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
+  .player-barra {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    font-size: 0.72rem;
+    color: #666;
+
+    ion-progress-bar {
+      flex: 1;
+    }
+  }
+
+  .player-erro {
+    margin: 4px 12px 0;
+    font-size: 0.75rem;
+    color: #d32f2f;
+  }
+}
+
+.abas {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: space-around;
+  align-items: stretch;
+  height: var(--app-rodape-altura);
+  padding-bottom: env(safe-area-inset-bottom);
+  background: #fff;
+  border-top: 1px solid #e0e0e0;
+
+  a {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    text-decoration: none;
+    color: #000;
+    font-size: 0.64rem;
+    min-width: 0;
+    opacity: 0.6;
+
+    ion-icon {
+      font-size: 1.25rem;
+    }
+
+    span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 100%;
+    }
+
+    &.ativa {
+      opacity: 1;
+      color: #3880ff;
+    }
+  }
+}
+
+ion-app { --app-rodape-altura: 62px; }
+
+ion-router-outlet + ion-footer {
+  bottom: var(--app-rodape-altura);
+}
+/* Estilos de navegação e do player persistente que acompanha todas as telas. */

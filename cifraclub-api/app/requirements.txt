@@ -1,0 +1,8 @@
+Flask==2.2.2
+# Werkzeug 3 removeu url_quote, quebrando o Flask 2.2 — manter na série 2.x.
+Werkzeug==2.3.8
+flask-cors==4.0.1
+beautifulsoup4==4.11.1
+selenium==4.6.0
+# Servidor WSGI de produção (substitui o app.run de desenvolvimento do Flask).
+waitress==3.0.0

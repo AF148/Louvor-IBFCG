@@ -1,0 +1,53 @@
+<ion-modal
+  [isOpen]="aberto()"
+  (didPresent)="aoAbrir()"
+  (didDismiss)="fechar()"
+  [backdropDismiss]="false"
+>
+  <ng-template>
+    <ion-header [translucent]="true">
+      <ion-toolbar>
+        <ion-title>Player do YouTube</ion-title>
+        <ion-buttons slot="end">
+          <ion-button fill="clear" (click)="fechar()" aria-label="Fechar">
+            <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content>
+      <div #playerEl class="yt-area"></div>
+
+      @if (videoAtual; as v) {
+        <ion-item>
+          <ion-label>
+            <h3>{{ v.titulo }}</h3>
+            @if (v.canal) { <p>{{ v.canal }}</p> }
+          </ion-label>
+        </ion-item>
+      }
+
+      @if (erroVideo(); as erro) {
+        <p class="aviso">{{ erro }}</p>
+      }
+
+      <div class="controles">
+        <ion-button fill="outline" (click)="anterior()" aria-label="Vídeo anterior">
+          <ion-icon slot="icon-only" name="play-skip-back-outline"></ion-icon>
+        </ion-button>
+        <ion-button fill="solid" (click)="tocar()" aria-label="Tocar">
+          <ion-icon slot="icon-only" name="play"></ion-icon>
+        </ion-button>
+        <ion-button fill="outline" (click)="proxima()" aria-label="Próximo vídeo">
+          <ion-icon slot="icon-only" name="play-skip-forward-outline"></ion-icon>
+        </ion-button>
+        <ion-button fill="outline" (click)="abrirFora()" aria-label="Abrir no YouTube">
+          <ion-icon slot="start" name="open-outline"></ion-icon>
+          Abrir no YouTube
+        </ion-button>
+      </div>
+    </ion-content>
+  </ng-template>
+</ion-modal>
+<!-- Conteúdo reutilizável do modal de vídeo, controlado pelo componente compartilhado. -->
