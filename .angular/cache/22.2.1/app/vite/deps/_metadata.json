@@ -1,0 +1,194 @@
+{
+  "hash": "0dc77859",
+  "configHash": "450c1651",
+  "lockfileHash": "c3f1a1a3",
+  "browserHash": "881ff5e3",
+  "optimized": {
+    "@angular/common": {
+      "src": "../../../../../../node_modules/@angular/common/fesm2022/common.mjs",
+      "file": "@angular_common.js",
+      "fileHash": "acb08868",
+      "needsInterop": false
+    },
+    "@angular/common/locales/pt": {
+      "src": "../../../../../../node_modules/@angular/common/locales/pt.js",
+      "file": "@angular_common_locales_pt.js",
+      "fileHash": "1aebcb45",
+      "needsInterop": false
+    },
+    "@angular/core": {
+      "src": "../../../../../../node_modules/@angular/core/fesm2022/core.mjs",
+      "file": "@angular_core.js",
+      "fileHash": "9454c565",
+      "needsInterop": false
+    },
+    "@angular/forms": {
+      "src": "../../../../../../node_modules/@angular/forms/fesm2022/forms.mjs",
+      "file": "@angular_forms.js",
+      "fileHash": "fca11d1e",
+      "needsInterop": false
+    },
+    "@angular/platform-browser": {
+      "src": "../../../../../../node_modules/@angular/platform-browser/fesm2022/platform-browser.mjs",
+      "file": "@angular_platform-browser.js",
+      "fileHash": "432e19e0",
+      "needsInterop": false
+    },
+    "@angular/router": {
+      "src": "../../../../../../node_modules/@angular/router/fesm2022/router.mjs",
+      "file": "@angular_router.js",
+      "fileHash": "9595eef4",
+      "needsInterop": false
+    },
+    "@capacitor/app": {
+      "src": "../../../../../../node_modules/@capacitor/app/dist/esm/index.js",
+      "file": "@capacitor_app.js",
+      "fileHash": "53ce93bf",
+      "needsInterop": false
+    },
+    "@capacitor/core": {
+      "src": "../../../../../../node_modules/@capacitor/core/dist/index.js",
+      "file": "@capacitor_core.js",
+      "fileHash": "5f7b4460",
+      "needsInterop": false
+    },
+    "@ionic/angular": {
+      "src": "../../../../../../node_modules/@ionic/angular/dist/standalone/index.js",
+      "file": "@ionic_angular.js",
+      "fileHash": "0e2a91bd",
+      "needsInterop": false
+    },
+    "firebase/app": {
+      "src": "../../../../../../node_modules/firebase/app/dist/esm/index.esm.js",
+      "file": "firebase_app.js",
+      "fileHash": "4aaee879",
+      "needsInterop": false
+    },
+    "firebase/auth": {
+      "src": "../../../../../../node_modules/firebase/auth/dist/esm/index.esm.js",
+      "file": "firebase_auth.js",
+      "fileHash": "02f6daf3",
+      "needsInterop": false
+    },
+    "firebase/database": {
+      "src": "../../../../../../node_modules/firebase/database/dist/esm/index.esm.js",
+      "file": "firebase_database.js",
+      "fileHash": "f19f0e42",
+      "needsInterop": false
+    },
+    "firebase/firestore": {
+      "src": "../../../../../../node_modules/firebase/firestore/dist/esm/index.esm.js",
+      "file": "firebase_firestore.js",
+      "fileHash": "05ca1ff0",
+      "needsInterop": false
+    },
+    "firebase/storage": {
+      "src": "../../../../../../node_modules/firebase/storage/dist/esm/index.esm.js",
+      "file": "firebase_storage.js",
+      "fileHash": "83d256e8",
+      "needsInterop": false
+    },
+    "ionicons": {
+      "src": "../../../../../../node_modules/ionicons/dist/index.js",
+      "file": "ionicons.js",
+      "fileHash": "55958127",
+      "needsInterop": false
+    },
+    "ionicons/icons": {
+      "src": "../../../../../../node_modules/ionicons/icons/index.mjs",
+      "file": "ionicons_icons.js",
+      "fileHash": "f8dbdc4c",
+      "needsInterop": false
+    },
+    "rxjs/operators": {
+      "src": "../../../../../../node_modules/rxjs/dist/esm5/operators/index.js",
+      "file": "rxjs_operators.js",
+      "fileHash": "ca7ff6bf",
+      "needsInterop": false
+    },
+    "xlsx": {
+      "src": "../../../../../../node_modules/xlsx/xlsx.mjs",
+      "file": "xlsx.js",
+      "fileHash": "fca0f8af",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "common-D2fN-aC2": {
+      "file": "common-D2fN-aC2.js",
+      "isDynamicEntry": false
+    },
+    "core-C7HmdH9c": {
+      "file": "core-C7HmdH9c.js",
+      "isDynamicEntry": false
+    },
+    "forms-KsNbonfV": {
+      "file": "forms-KsNbonfV.js",
+      "isDynamicEntry": false
+    },
+    "index.esm-DXDFeX0J": {
+      "file": "index.esm-DXDFeX0J.js",
+      "isDynamicEntry": false
+    },
+    "operators-PAEWG_Xc": {
+      "file": "operators-PAEWG_Xc.js",
+      "isDynamicEntry": false
+    },
+    "p-B8HBLiYi-C4-hENIE": {
+      "file": "p-B8HBLiYi-C4-hENIE.js",
+      "isDynamicEntry": false
+    },
+    "p-BMPN55of-Bt4HbXz4": {
+      "file": "p-BMPN55of-Bt4HbXz4.js",
+      "isDynamicEntry": false
+    },
+    "p-BUVGbkSc-DKUVdrqJ": {
+      "file": "p-BUVGbkSc-DKUVdrqJ.js",
+      "isDynamicEntry": true
+    },
+    "p-BriaEJK8-DcZRcXFi": {
+      "file": "p-BriaEJK8-DcZRcXFi.js",
+      "isDynamicEntry": false
+    },
+    "p-CVVUo4J1-Cf_FOllb": {
+      "file": "p-CVVUo4J1-Cf_FOllb.js",
+      "isDynamicEntry": false
+    },
+    "p-C_NQIzjP-C4T4jC-u": {
+      "file": "p-C_NQIzjP-C4T4jC-u.js",
+      "isDynamicEntry": true
+    },
+    "p-D0YpjgON-DlbOmPwz": {
+      "file": "p-D0YpjgON-DlbOmPwz.js",
+      "isDynamicEntry": false
+    },
+    "p-D4NOsSCE-Cs8zSKXd": {
+      "file": "p-D4NOsSCE-Cs8zSKXd.js",
+      "isDynamicEntry": true
+    },
+    "p-DlUdjUlf-DbpaRDDg": {
+      "file": "p-DlUdjUlf-DbpaRDDg.js",
+      "isDynamicEntry": false
+    },
+    "p-ZjP4CjeZ-BnW-oeAv": {
+      "file": "p-ZjP4CjeZ-BnW-oeAv.js",
+      "isDynamicEntry": false
+    },
+    "p-yjLe0sN2-B2fKWsgT": {
+      "file": "p-yjLe0sN2-B2fKWsgT.js",
+      "isDynamicEntry": true
+    },
+    "platform-browser-BprNaSWu": {
+      "file": "platform-browser-BprNaSWu.js",
+      "isDynamicEntry": false
+    },
+    "router-BfXiwR6X": {
+      "file": "router-BfXiwR6X.js",
+      "isDynamicEntry": false
+    },
+    "web-8YuiPUEH": {
+      "file": "web-8YuiPUEH.js",
+      "isDynamicEntry": true
+    }
+  }
+}
