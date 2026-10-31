@@ -1,0 +1,19 @@
+{
+    "version": 2,
+    "builds": [
+      {
+        "src": "api/*.js",
+        "use": "@vercel/node"
+      }
+    ],
+    "routes": [
+      {
+        "src": "/api/cifra-club-2",
+        "dest": "/api/cifra.js"
+      },
+      {
+        "src": "/api/cifra",
+        "dest": "/api/cifra.js"
+      }
+    ]
+  }
