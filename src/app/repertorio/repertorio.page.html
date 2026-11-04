@@ -133,7 +133,7 @@
             @if (l.midia) {
               <button class="miniatura" (click)="alternarPainel('midia')" [class.tocando]="painel() === 'midia'" aria-label="Abrir mídia">
                 @if (l.midia.tipo === 'mp4') {
-                  <video [src]="l.midia.url" preload="metadata" muted playsinline tabindex="-1"></video>
+                  <ion-icon name="videocam-outline"></ion-icon>
                 } @else {
                   <ion-icon name="musical-notes-outline"></ion-icon>
                 }
@@ -283,14 +283,26 @@
         @if (painel() === 'midia') {
           <div class="painel-flutuante painel-midia">
             @if (l.midia) {
-              @if (l.midia.tipo === 'mp4') {
-                <video class="video-midia" [src]="l.midia.url" controls playsinline></video>
+              @if (midiaUrl(); as url) {
+                @if (l.midia.tipo === 'mp4') {
+                  <video class="video-midia" [src]="url" controls playsinline></video>
+                } @else {
+                  <audio class="audio-midia" [src]="url" controls preload="metadata"></audio>
+                }
+                <p class="painel-dica">
+                  Player direto na página. Para trocar de música, feche este painel e use a lista do Repertório.
+                </p>
+              } @else if (midiaErro()) {
+                <p class="painel-erro-midia">{{ midiaErro() }}</p>
               } @else {
-                <audio class="audio-midia" [src]="l.midia.url" controls preload="metadata"></audio>
+                <p class="painel-dica">
+                  @if (midiaCarregando()) {
+                    Carregando o arquivo do Firestore… o primeiro toque baixa o áudio inteiro.
+                  } @else {
+                    Abrindo o player…
+                  }
+                </p>
               }
-              <p class="painel-dica">
-                Player direto na página. Para trocar de música, feche este painel e use a lista do Repertório.
-              </p>
             } @else {
               <p class="painel-erro-midia">Este louvor ainda não tem arquivo de mídia anexada.</p>
               @if (podeEditar()) {
@@ -439,7 +451,7 @@
           <h3 class="secao">Áudio ou vídeo</h3>
           @if (podeEditar()) {
             <p class="dica-media">
-              Aceita mp3 e mp4. Escolher sem salvar envia direto ao Firebase Storage.
+              Aceita mp3 e mp4. O arquivo é guardado em partes no Firestore, junto do louvor.
             </p>
             <div class="acoes-externas">
               <label class="botao-arquivo">

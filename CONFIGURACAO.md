@@ -7,8 +7,14 @@ Passos para o app funcionar com dados salvos na nuvem.
 1. Abra https://console.firebase.google.com e clique em **Adicionar projeto**.
 2. Crie um projeto (o nome é livre).
 3. Em **Authentication → Sign-in method**, ative **Anônimo**. É o que o app usa.
-4. Em **Firestore Database**, crie o banco em modo produção.
-5. Em **Storage**, crie o bucket.
+4. Em **Authentication → Sign-in method**, ative também **E-mail/senha**.
+   É o login de membros e administradores (Perfil → Entrar).
+5. Em **Firestore Database**, crie o banco em modo produção.
+
+> **Storage não é usado.** Os áudios dos kits e do Repertório são guardados
+> em partes dentro do próprio Firestore (seção 9), então não é preciso criar
+> bucket nem ativar o Firebase Storage — inclusive porque ele não está
+> disponível no plano gratuito deste projeto.
 
 ## 2. Preencher as credenciais
 
@@ -36,10 +42,10 @@ Com o Firebase CLI instalado (`npm i -g firebase-tools`), na pasta do projeto:
 ```
 firebase login
 firebase use --add
-firebase deploy --only firestore:rules,storage
+firebase deploy --only firestore:rules
 ```
 
-Isso aplica `firestore.rules` e `storage.rules`. Veja a seção 10 para a
+Isso aplica `firestore.rules`. Veja a seção 10 para a
 ordem correta (cadastre os administradores no Console antes de enviar).
 
 ## 4. Logo da igreja
@@ -56,39 +62,74 @@ ionic serve        # com o servidor do Ionic
 npx cap sync       # depois de gerar o app nativo
 ```
 
-## 6. Cifras do Cifra Club (2) (opcional)
+## 6. Cifras do Cifra Club (2)
 
-O app consulta as cifras pela API Node.js local em
-`cifraclub-api-2/` (Axios + Cheerio; não precisa de Docker).
+O app busca cifra em **duas origens, nesta ordem** (`CifraService.basesCifra()`):
+
+| # | Origem | Quando é usada | Fonte que responde |
+|---|---|---|---|
+| 1 | `cifraApi.baseUrl` → `http://localhost:3001` | no seu PC, com o servidor local ligado | **Cifra Club** (cobertura completa) |
+| 2 | `cifraApi.fallbackUrl` → API pública na Vercel | celular, ou PC com o servidor desligado | **Cifralize** (cobertura parcial) |
+
+Se a primeira nem responder (porta fechada, timeout, 5xx), o app cai
+automaticamente para a segunda. **A tela nunca quebra por causa disso.**
+
+### 6.1 API local (cobertura completa)
 
 1. Instale o Node.js. As dependências já foram instaladas nesta cópia do projeto.
-2. Inicie o servidor na porta 3001 para manter a porta 3000 disponível ao
-   serviço opcional de descoberta de playlists do YouTube:
+2. Suba a API na porta 3001 (e o app) com **um comando só**:
 
    ```
-   cd cifraclub-api-2
-   $env:PORT=3001; npm start
+   npm run dev
    ```
 
-3. A API estará disponível em `http://localhost:3001/api/cifra-club-2`. Por exemplo:
-   `http://localhost:3001/api/cifra-club-2?artist=coldplay&song=the-scientist`.
-4. A base URL fica em `src/environments/environment.ts` (`cifraApi.baseUrl`).
-   - **Navegador (`npm start` / `ionic serve`)**: `http://localhost:3001`
-     já funciona (a API tem CORS liberado).
-   - **App no aparelho (Capacitor)**: troque `localhost` pelo IP da máquina
-     que roda o Node na rede local, ex.: `http://192.168.0.10:3001`. O
-     aparelho e a máquina precisam estar na mesma rede, e o firewall deve
-     liberar a porta 3001.
-   - Vazio (`''`): busca de cifra desativada.
-5. No formulário do louvor, use o botão **Buscar letra e cifra**. Preencha
-   título e artista como aparecem no Cifra Club (ex.: artista `coldplay`,
-   título `the-scientist`).
+   Só a API, se o app já estiver rodando em outro terminal:
 
-> A API consulta a página do Cifra Club pela rede. Se a música não existir no
-> Cifra Club, o app avisa e você digita manualmente. Use o título/artista
-> como aparecem no Cifra Club — se a música for um refrão dentro de outra
-> (ex.: "Minha Vitória está em Ti", que está em "O Hino"), busque pela música
-> principal.
+   ```
+   npm run start:cifra
+   ```
+
+3. Teste: `http://localhost:3001/api/cifra-club-2?artist=legiao-urbana&song=tempo-perdido`
+   deve devolver JSON com `"cifra": [...]`.
+
+> O `npm run dev` continua no ar mesmo se a API cair: só avisa no terminal
+> (`API local fora. O app segue e usa a API da Vercel.`).
+
+### 6.2 API pública na Vercel (celular / fora de casa)
+
+Publicada em **`https://louvor-ibfcg-cifraclub-api-2.vercel.app`**
+(projeto `louvor-ibfcg-cifraclub-api-2`, pasta `cifraclub-api-2/`).
+
+- Raiz (`/`) devolve JSON com o modo de usar — não é 404.
+- Endpoint: `/api/cifra-club-2?artist=<slug>&song=<slug>` (mesmo formato do local).
+- **Redeploy** (após mudar `cifraclub-api-2/`):
+
+  ```
+  cd cifraclub-api-2
+  vercel --prod --yes
+  ```
+
+  A pasta `.vercel/` na raiz do projeto já está vinculada (conta `af148`).
+
+> **Limite importante:** o Cifra Club usa Akamai e **bloqueia IP de
+> datacenter** (testado: mesmo código retorna 403 da Vercel e 200 do seu PC).
+> Da Vercel a busca cai no **Cifralize**, que não tem todos os louvores.
+> Por isso a ordem local-primeiro: **em casa, com `npm run dev`, você tem a
+> cobertura total do Cifra Club**; fora de casa vale o que o Cifralize tem.
+
+### 6.3 Usando a busca
+
+No formulário do louvor, use **Buscar letra e cifra**. Preencha título e
+artista como aparecem no Cifra Club (ex.: artista `coldplay`, título
+`the-scientist`).
+
+> Se a música não existir nas duas fontes, o app avisa e você digita
+> manualmente. Use o título/artista como aparecem no Cifra Club — se a música
+> for um refrão dentro de outra (ex.: "Minha Vitória está em Ti", que está em
+> "O Hino"), busque pela música principal.
+>
+> Obs.: `artist` e `song` vão em minúsculas, sem acento e com hífens
+> (`"Jeová Rafá"` → `jeova-rafa`); o app já faz isso sozinho.
 
 ## 7. Importar playlists do YouTube
 
@@ -152,17 +193,31 @@ de músicas pelo microfone do aparelho e os membros ouvirem no app.
 - **Como gravar:** botão **Gravar kit** → título → **Gravar música** →
   **Parar** → ouça a prévia, dê o nome da música → **Adicionar faixa**
   (repete quantas vezes quiser) → **Salvar kit**.
-- Os áudios sobem para o Storage em `kits/{kitId}/` e os kits ficam na
-  coleção `kits` do Firestore (escuta em tempo real: aparece na tela dos
-  outros membros na hora).
+- **Áudio gravado em outro app:** no modal de gravação há o botão
+  **Usar arquivo já gravado** — escolhe um mp3/m4a/wav gravado em qualquer
+  aplicativo (gravador de voz, WhatsApp, download) e ele vira uma faixa do
+  kit, sem passar pelo microfone.
+- **Onde o áudio é salvo:** sem Firebase Storage. O arquivo é dividido em
+  pedaços de ~700 KB (limite de 1 MB por documento) e gravado na coleção
+  `arquivos` do Firestore (`arquivos/{caminho}/partes/{n}`); o campo `url`
+  da faixa guarda o atalho `fs://...`. Ao tocar, o app baixa os pedaços,
+  remonta o arquivo e toca — por isso **o primeiro toque de cada faixa
+  baixa o áudio inteiro** (depois fica no cache do aparelho).
+- Os kits ficam na coleção `kits` do Firestore (escuta em tempo real:
+  aparece na tela dos outros membros na hora).
 - Os membros tocam no kit para ver as faixas; tocar numa faixa usa o player
   global (continua tocando ao trocar de tela).
-- A exclusão de kit/faixa também é só de administrador (Firestore e Storage).
+- A exclusão de kit/faixa também é só de administrador (apaga o documento
+  e os pedaços do áudio).
+- **Microfone no Android:** o `AndroidManifest.xml` declara `RECORD_AUDIO`
+  e `MODIFY_AUDIO_SETTINGS`. Sem essas permissões o WebView nega o
+  microfone sempre e a gravação não captura nada. Se o app antigo foi
+  instalado sem elas, reinstale o APK depois de um `npx cap sync android`.
 
 ## 10. Permissões de acesso
 
 O app tem três níveis de acesso, aplicados **tanto na interface quanto nas
-regras do Firestore/Storage**:
+regras do Firestore**:
 
 | Nível | Quem | Pode |
 | --- | --- | --- |
@@ -203,7 +258,42 @@ Para achar o UID de um usuário: Console → Authentication → aba **Users**.
 > administradores no Console (Authentication → Users → Add user) para que
 > eles consigam entrar pelo app; senão todos ficam só de leitura.
 
+## 11. E-mail de confirmação de conta
+
+Quem se registra (Perfil → Entrar → Criar conta) recebe **dois e-mails**:
+
+1. **Confirmação de conta do próprio Firebase** (`sendEmailVerification`).
+   O app envia sozinho após o registro e reenvia ao entrar, enquanto a
+   conta não for confirmada. O Perfil mostra o aviso "Confirme seu e-mail"
+   com os botões **Reenviar e-mail** e **Já confirmei**.
+2. **E-mail de boas-vindas personalizado.** Só é possível com uma
+   **Cloud Function**, que exige o plano **Blaze (pago)** — no plano
+   gratuito fica pendente (ver Limitações).
+
+Para o e-mail 1 chegar na caixa de entrada do Gmail:
+
+1. Console → **Authentication → Templates → Email address verification**
+   (endereço de e-mail). O template padrão já funciona sem nada; para
+   personalizar, clique em **Edit** e mude **Sender name** (ex.:
+   `Scale - Louvor IBFCG`) e o texto. **Save**.
+2. Confirme em **Authentication → Settings → User actions** que
+   **Email enumeration protection** não impede o envio (padrão: pode ficar
+   ligado; o app trata o erro).
+3. Teste: crie uma conta no app e veja se o e-mail chega no Gmail (olhe a
+   pasta **Promoções/Spam** — e-mail de servidor costuma cair lá).
+
+> Quem não confirma continua logado e com tudo liberado; o Perfil apenas
+> mostra o aviso de confirmação enquanto `emailVerified` for falso.
+
 ## Limitações conhecidas
+
+- **E-mail de boas-vindas personalizado**: precisa de Cloud Function
+  (plano Blaze, pago). No plano gratuito só o e-mail de confirmação nativo
+  do Firebase (seção 11).
+- **Áudio no Firestore**: cada faixa consome a cota de armazenamento e de
+  escritas do plano gratuito (gravar é barato; ouvir é leitura, que também
+  tem cota diária). Prefira mp3 a WAV (o gravador do app produz WAV, bem
+  maior) e apague kits antigos que não sirvam mais.
 
 - **Autoplay na abertura**: navegadores bloqueiam áudio sem interação do
   usuário. O app tenta tocar ao abrir; se for bloqueado, o player mostra o botão

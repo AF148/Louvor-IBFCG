@@ -1,8 +1,13 @@
 ion-app {
   --app-rodape-altura: 62px;
-  --app-player-altura: 96px;
+  /* Espaço extra reservado no fim do conteúdo enquanto o player está aberto. */
+  --app-player-altura: 0px;
   color: #000;
   background: #fff;
+}
+
+ion-app.com-player {
+  --app-player-altura: 96px;
 }
 
 ion-menu {
@@ -174,7 +179,18 @@ ion-menu ion-item.selecionado {
 
 ion-app { --app-rodape-altura: 62px; }
 
-ion-router-outlet + ion-footer {
+/* Player fixo encostado acima da barra de abas (menu deitado). */
+ion-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
   bottom: var(--app-rodape-altura);
+  z-index: 20;
+}
+
+/* Com o player visible, o conteúdo precisa de espaço extra para não ficar
+   escondido atrás dele. */
+ion-app.com-player ion-content {
+  --padding-bottom: calc(104px + var(--app-player-altura));
 }
 /* Estilos de navegação e do player persistente que acompanha todas as telas. */

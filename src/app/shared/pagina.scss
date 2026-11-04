@@ -1,5 +1,6 @@
 ion-content {
-  --padding-bottom: 104px;
+  /* 104px cobrem a barra de abas; + o player quando estiver aberto. */
+  --padding-bottom: calc(104px + var(--app-player-altura, 0px));
 }
 
 .versiculo-card {

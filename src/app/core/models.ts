@@ -58,7 +58,7 @@ export interface Louvor {
   cifra?: string;
   /** Fonte externa de onde a cifra foi importada. */
   fonteCifra?: string;
-  /** Áudio/vídeo do louvor, enviado pelo Firebase Storage. */
+  /** Áudio/vídeo do louvor, guardado em partes no Firestore (campo `url`). */
   midia?: Midia;
   criadoEm: number;
   atualizadoEm: number;
@@ -150,7 +150,7 @@ export interface MensagemVoz {
   id: string;
   autorId?: string;
   autorNome?: string;
-  /** URL do áudio no Firebase Storage. */
+  /** URL do áudio (`fs://...` aponta para um arquivo em partes no Firestore). */
   url: string;
   duracaoSegundos?: number;
   /** Vinculação opcional a um culto. */
@@ -163,7 +163,7 @@ export interface MensagemVoz {
 export interface FaixaKit {
   id: string;
   titulo: string;
-  /** URL do áudio no Firebase Storage. */
+  /** URL do áudio (`fs://...` aponta para um arquivo em partes no Firestore). */
   url: string;
   duracaoSegundos?: number;
   criadoEm: number;

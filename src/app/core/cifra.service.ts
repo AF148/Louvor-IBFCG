@@ -96,11 +96,16 @@ export class CifraService {
   }
 
   /**
-   * Busca a cifra na API Node local; a letra continua sendo consultada separadamente.
+   * Busca a cifra na API Node; a letra continua sendo consultada separadamente.
+   *
+   * Tenta as origens em ordem: `cifraApi.baseUrl` (local, rápida) e depois
+   * `cifraApi.fallbackUrl` (API pública na Vercel). Assim o celular — onde
+   * `localhost` aponta para o próprio aparelho — e o PC com o servidor
+   * desligado continuam conseguindo buscar cifra.
    */
   async buscarCifra(titulo: string, artista: string): Promise<ResultadoBusca> {
-    const base = (environment.cifraApi?.baseUrl ?? '').replace(/\/+$/, '');
-    if (!base) {
+    const bases = this.basesCifra();
+    if (!bases.length) {
       return {
         aviso:
           'Busca de cifra desativada. Preencha `cifraApi.baseUrl` em src/environments/environment.ts.',
@@ -115,36 +120,65 @@ export class CifraService {
     this.aviso.set('Consultando o Cifra Club (2)…');
     try {
       const parametros = new URLSearchParams({ artist: slugificar(a), song: slugificar(t) });
-      const url = `${base}/api/cifra-club-2?${parametros.toString()}`;
-      const res = await fetch(url, { signal: AbortSignal.timeout(20_000) });
-      if (!res.ok) {
-        return { aviso: `A API de cifras respondeu ${res.status}.` };
+      const caminho = `/api/cifra-club-2?${parametros.toString()}`;
+      let falha: unknown = null;
+      for (const base of bases) {
+        try {
+          return await this.consultar(`${base}${caminho}`);
+        } catch (e) {
+          // Só tenta a próxima origem se a anterior nem respondeu (rede,
+          // timeout, 5xx). Resposta 4xx é o mesmo problema em qualquer origem.
+          falha = e;
+        }
       }
-      const dados = (await res.json()) as RespostaCifraClub;
-      if (dados.error || !dados.cifra?.length) {
-        return {
-          letra: dados.letra,
-          fonteNome: dados.source,
-          aviso: dados.error || 'Música não encontrada no Cifra Club. Verifique o título/artista ou digite a cifra manualmente.',
-          fonte: dados.cifraclub_url,
-        };
-      }
-      return {
-        cifra: dados.cifra.join('\n'),
-        letra: dados.letra,
-        fonte: dados.cifraclub_url,
-        fonteNome: dados.source,
-      };
-    } catch (e) {
-      const expirou = e instanceof DOMException && e.name === 'TimeoutError';
+      const expirou = falha instanceof DOMException && falha.name === 'TimeoutError';
       return {
         aviso: expirou
           ? 'A API de cifras demorou demais para responder. Tente novamente.'
-          : 'Falha ao consultar a API Cifra Club (2). Confira se o servidor Node está rodando com `npm start` na pasta cifraclub-api-2/.',
+          : 'Falha ao consultar a API Cifra Club (2). Verifique a internet ou rode `npm run start:cifra` na pasta do projeto.',
       };
     } finally {
       this.concluir();
     }
+  }
+
+  /** Origens de cifra na ordem em que serão tentadas (vazias são ignoradas). */
+  private basesCifra(): string[] {
+    const cfg = environment.cifraApi;
+    const limpar = (v?: string) => (v ?? '').trim().replace(/\/+$/, '');
+    const bases = [limpar(cfg?.baseUrl), limpar(cfg?.fallbackUrl)].filter(
+      (v): v is string => !!v,
+    );
+    // Sem repetir a mesma URL se as duas forem iguais.
+    return [...new Set(bases)];
+  }
+
+  /** Faz a chamada e devolve o resultado pronto; lança em falha de rede/5xx. */
+  private async consultar(url: string): Promise<ResultadoBusca> {
+    const res = await fetch(url, { signal: AbortSignal.timeout(20_000) });
+    if (!res.ok) {
+      // 4xx (ex.: parâmetro inválido) é resposta da própria API: adianta
+      // pouco trocar de origem, então devolve a mensagem direto.
+      if (res.status < 500) return { aviso: `A API de cifras respondeu ${res.status}.` };
+      throw new Error(`HTTP ${res.status}`);
+    }
+    const dados = (await res.json()) as RespostaCifraClub;
+    if (dados.error || !dados.cifra?.length) {
+      return {
+        letra: dados.letra,
+        fonteNome: dados.source,
+        aviso:
+          dados.error ||
+          'Música não encontrada no Cifra Club. Verifique o título/artista ou digite a cifra manualmente.',
+        fonte: dados.cifraclub_url,
+      };
+    }
+    return {
+      cifra: dados.cifra.join('\n'),
+      letra: dados.letra,
+      fonte: dados.cifraclub_url,
+      fonteNome: dados.source,
+    };
   }
 }
 

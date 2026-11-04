@@ -23,8 +23,8 @@ import {
   type DocumentData,
   type QueryConstraint,
 } from 'firebase/firestore';
-import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { firestore, storage, initFirebase } from './firebase';
+import { firestore, initFirebase } from './firebase';
+import { MidiaService } from './midia.service';
 import type { Culto, KitMusical, Louvor, MensagemVoz, Participante, PlanilhaEscala, Playlist } from './models';
 
 /**
@@ -218,25 +218,21 @@ export class StoreService implements OnDestroy {
       .sort((a, b) => `${a.data}${a.hora}`.localeCompare(`${b.data}${b.hora}`))[0];
   }
 
+  /** Áudio/vídeo guardado em partes no Firestore (sem Firebase Storage). */
+  private readonly midia = inject(MidiaService);
+
   /**
-   * Envia arquivo para o Storage e devolve a URL pública.
-   * Requer regras do Storage liberando leitura e escrita por usuário anônimo.
+   * Envia arquivo para o Firestore (dividido em pedaços < 1 MB) e devolve
+   * o atalho `fs://...` a ser gravado no documento do kit ou do louvor.
    */
   async enviarArquivo(caminho: string, arquivo: File): Promise<string> {
-    await initFirebase();
-    const alvo = storageRef(storage(), caminho);
-    await uploadBytes(alvo, arquivo);
-    return getDownloadURL(alvo);
+    return this.midia.enviar(caminho, arquivo);
   }
 
+  /** Remove o arquivo em partes (ignora URLs que não sejam `fs://`). */
   async removerArquivo(url: string): Promise<void> {
     if (!url) return;
-    await initFirebase();
-    try {
-      await deleteObject(storageRef(storage(), url));
-    } catch {
-      // O objeto pode já ter sido removido; a URL deixaria de resolver.
-    }
+    await this.midia.remover(url);
   }
 
   /** Consulta cultos dentro de uma janela de datas. */

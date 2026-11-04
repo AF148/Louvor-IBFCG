@@ -6,6 +6,8 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
+    "start:cifra": "node cifraclub-api-2/server.js",
+    "dev": "node scripts/dev.js",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",

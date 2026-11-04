@@ -7,7 +7,6 @@ export const environment = {
   firebase: {
     apiKey: 'AIzaSyA754KFRv7H1_4MUnHQz2SoLKRPPbr5LRc',
     authDomain: 'louvor-ibfcg.firebaseapp.com',
-    databaseURL: 'https://louvor-ibfcg-default-rtdb.firebaseio.com',
     projectId: 'louvor-ibfcg',
     storageBucket: 'louvor-ibfcg.firebasestorage.app',
     messagingSenderId: '1035514933974',
@@ -20,8 +19,12 @@ export const environment = {
     apiKey: 'AIzaSyCQX10cB1NyipbeQLsdnLoIXnUUWLKo-RY',
   },
   // API local Cifra Club (2), servida pela pasta cifraclub-api-2/, sem Docker.
+  // `fallbackUrl` é a mesma API publicada (Vercel): entra quando a local não
+  // responde — no celular `localhost` não existe, e no PC com o servidor
+  // desligado também. Deixe vazia para desativar.
   cifraApi: {
     baseUrl: 'http://localhost:3001',
+    fallbackUrl: 'https://louvor-ibfcg-cifraclub-api-2.vercel.app',
   },
   // API antiga para descobrir playlists a partir de um vídeo; ainda usa Docker.
   youtubePlaylistApi: {

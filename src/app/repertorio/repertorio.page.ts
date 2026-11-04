@@ -5,6 +5,7 @@ import {
   inject,
   computed,
   signal,
+  effect,
   ViewChild,
   ElementRef,
 } from '@angular/core';
@@ -27,6 +28,7 @@ import {
 import { StoreService } from '../core/store.service';
 import { AuthService } from '../core/auth.service';
 import { AudioService } from '../core/audio.service';
+import { MidiaService } from '../core/midia.service';
 import { CifraService, transpor, distancia } from '../core/cifra.service';
 import type { ResultadoBusca } from '../core/cifra.service';
 import type { Louvor } from '../core/models';
@@ -162,6 +164,16 @@ export class RepertorioPage implements OnInit, OnDestroy {
   readonly velocidade = signal(40);
   readonly tamanhoFonte = signal(15);
 
+  // --- Mídia em partes no Firestore (sem Firebase Storage) ---
+  /** Converte o atalho fs:// do louvor em object URL tocável. */
+  private readonly midiaSvc = inject(MidiaService);
+  /** URL já montada para o player do painel de mídia; null = ainda carregando. */
+  readonly midiaUrl = signal<string | null>(null);
+  readonly midiaCarregando = signal(false);
+  readonly midiaErro = signal<string | null>(null);
+  /** Qual atalho o efeito já pediu (campo comum: evita baixar duas vezes). */
+  private midiaPedida: string | null = null;
+
   @ViewChild('areaRolagem') areaRolagem?: ElementRef<HTMLDivElement>;
   private elRolagem: HTMLElement | null = null;
   private timerRolagem?: number;
@@ -239,6 +251,38 @@ export class RepertorioPage implements OnInit, OnDestroy {
       musicalNotesOutline, videocamOutline, keyOutline,
       removeOutline, addOutlineIcon, swapVerticalOutline,
       chevronDownOutline, appsOutline,
+    });
+
+    // Baixa o arquivo em partes só quando o painel de mídia abre — baixar
+    // tudo na lista gastaria dados à toa (os pedaços não têm faixa de stream).
+    effect(() => {
+      const url =
+        this.painel() === 'midia' ? (this.detalhe()?.midia?.url ?? null) : null;
+      if (!url) {
+        this.midiaPedida = null;
+        this.midiaUrl.set(null);
+        this.midiaCarregando.set(false);
+        this.midiaErro.set(null);
+        return;
+      }
+      if (url === this.midiaPedida) return;
+      this.midiaPedida = url;
+      this.midiaUrl.set(null);
+      this.midiaErro.set(null);
+      this.midiaCarregando.set(true);
+      void this.midiaSvc
+        .resolver(url)
+        .then((resolvida) => {
+          if (this.midiaPedida === url) this.midiaUrl.set(resolvida);
+        })
+        .catch(() => {
+          if (this.midiaPedida === url) {
+            this.midiaErro.set('Não foi possível carregar o arquivo de mídia.');
+          }
+        })
+        .finally(() => {
+          if (this.midiaPedida === url) this.midiaCarregando.set(false);
+        });
     });
   }
 
@@ -360,7 +404,7 @@ export class RepertorioPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Envia mp3 ou mp4 do dispositivo para o Storage e devolve a mídia pronta.
+   * Envia mp3 ou mp4 do dispositivo em partes ao Firestore e devolve a mídia pronta.
    * Sem Firebase configurado, usa object URL local para ouvir na hora.
    */
   async escolherArquivo(evento: Event): Promise<void> {
@@ -376,7 +420,7 @@ export class RepertorioPage implements OnInit, OnDestroy {
     try {
       const existente = this.emEdicao();
       if (!existente) {
-        this.aviso.set('Salve o louvor antes de anexar o arquivo, para vincular o Storage.');
+        this.aviso.set('Salve o louvor antes de anexar o arquivo, para poder vinculá-lo.');
         return;
       }
       const caminho = `louvores/${existente.id}/${Date.now()}-${arquivo.name}`;
@@ -387,7 +431,7 @@ export class RepertorioPage implements OnInit, OnDestroy {
       });
       this.aviso.set(ehVideo ? 'Vídeo mp4 anexado.' : 'Áudio mp3 anexado.');
     } catch {
-      this.aviso.set('Falha ao enviar o arquivo. Verifique as regras do Firebase Storage.');
+      this.aviso.set('Falha ao enviar o arquivo. Verifique a conexão e tente de novo.');
     } finally {
       this.enviando.set(false);
     }
@@ -479,10 +523,11 @@ export class RepertorioPage implements OnInit, OnDestroy {
       this.aviso.set('Este louvor ainda não tem arquivo de mídia.');
       return;
     }
+    // Sem fila: a barra de play existe só para os Kits.
     await this.audio.tocar(l, l.midia);
   }
 
-  /** Toca um arquivo mp3/mp4 direto do dispositivo, sem subir para o Storage. */
+  /** Toca um arquivo mp3/mp4 direto do dispositivo, sem enviar para a nuvem. */
   async tocarLocal(evento: Event, l: Louvor): Promise<void> {
     const input = evento.target as HTMLInputElement;
     const arquivo = input.files?.[0];

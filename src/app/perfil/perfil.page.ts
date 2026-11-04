@@ -63,6 +63,8 @@ export class PerfilPage {
   readonly salvando = signal(false);
   /** Troca direta pela capa/avatar (fora do modal de edição). */
   readonly salvandoImagem = signal(false);
+  /** Enviando o reenvio do e-mail de confirmação. */
+  readonly enviandoConfirmacao = signal(false);
   readonly acaoCapa = signal(false);
   readonly aviso = signal<string | null>(null);
   readonly habilidadesDisponiveis = [
@@ -282,6 +284,33 @@ export class PerfilPage {
   async sair(): Promise<void> {
     await this.auth.sair();
     await this.router.navigateByUrl('/home');
+  }
+
+  /** Reenvia o e-mail de verificação para a caixa de entrada. */
+  async reenviarConfirmacao(): Promise<void> {
+    this.enviandoConfirmacao.set(true);
+    this.aviso.set(null);
+    try {
+      await this.auth.reenviarConfirmacao();
+      this.aviso.set('E-mail de confirmação reenviado. Confira sua caixa de entrada.');
+    } catch (err) {
+      this.aviso.set(err instanceof Error ? err.message : 'Não foi possível reenviar o e-mail.');
+    } finally {
+      this.enviandoConfirmacao.set(false);
+    }
+  }
+
+  /** Recarrega a conta após o clique no link de confirmação. */
+  async verificarConfirmacao(): Promise<void> {
+    this.aviso.set(null);
+    try {
+      await this.auth.atualizarConfirmacao();
+      if (!this.auth.emailConfirmado()) {
+        this.aviso.set('Ainda não confirmado. Abra o link que enviamos para o seu e-mail.');
+      }
+    } catch {
+      this.aviso.set('Não foi possível verificar agora. Tente novamente.');
+    }
   }
 
   get iniciais(): string {

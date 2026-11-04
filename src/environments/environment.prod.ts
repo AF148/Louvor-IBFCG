@@ -3,7 +3,6 @@ export const environment = {
   firebase: {
     apiKey: 'AIzaSyA754KFRv7H1_4MUnHQz2SoLKRPPbr5LRc',
     authDomain: 'louvor-ibfcg.firebaseapp.com',
-    databaseURL: 'https://louvor-ibfcg-default-rtdb.firebaseio.com',
     projectId: 'louvor-ibfcg',
     storageBucket: 'louvor-ibfcg.firebasestorage.app',
     messagingSenderId: '1035514933974',
@@ -15,8 +14,11 @@ export const environment = {
     apiKey: 'AIzaSyCQX10cB1NyipbeQLsdnLoIXnUUWLKo-RY',
   },
   // API Node.js local para cifras. Em aparelho nativo, use o IP do computador.
+  // `fallbackUrl` é a API publicada (Vercel): é ela que o celular usa, já que
+  // `localhost` no aparelho aponta para o próprio telefone.
   cifraApi: {
     baseUrl: 'http://localhost:3001',
+    fallbackUrl: 'https://louvor-ibfcg-cifraclub-api-2.vercel.app',
   },
   // Serviço anterior de descoberta de playlists do YouTube (Docker).
   youtubePlaylistApi: {

@@ -30,6 +30,14 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
+    // Áudio/vídeo em partes no Firestore (o projeto não usa Firebase Storage).
+    // O id do documento é o caminho com "/" trocado por "|"
+    // ("kits|kit1|a.wav", "louvores|l1|a.mp3") e as regras decidem por ele.
+    function podeGravarArquivo(id) {
+      return (id.matches('^kits[|].*') && admin()) ||
+        (id.matches('^louvores[|].*') && (admin() || membro()));
+    }
+
     // ===== Editáveis por membros logados =====
 
     match /louvores/{id} {
@@ -74,6 +82,18 @@ service cloud.firestore {
     match /mensagens/{id} {
       allow read: if autenticado();
       allow write: if admin();
+    }
+
+    // Áudios dos kits e do Repertório guardados em partes (sem Storage).
+    // `arquivos/{id}` tem os metadados; `partes/{n}` tem os pedaços < 1 MB.
+    match /arquivos/{arquivoId} {
+      allow read: if autenticado();
+      allow write: if podeGravarArquivo(arquivoId);
+
+      match /partes/{parteId} {
+        allow read: if autenticado();
+        allow write: if podeGravarArquivo(arquivoId);
+      }
     }
 
     // Lista de administradores: membros leem (o app verifica se o usuário

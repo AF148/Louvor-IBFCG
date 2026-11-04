@@ -10,13 +10,14 @@ import { addIcons } from 'ionicons';
 import {
   addOutline, trashOutline, saveOutline, closeOutline, micOutline,
   stopOutline, playCircleOutline, pauseCircleOutline, musicalNotesOutline,
-  personCircleOutline, timerOutline,
+  personCircleOutline, timerOutline, folderOpenOutline,
 } from 'ionicons/icons';
 import { StoreService } from '../core/store.service';
 import { AuthService } from '../core/auth.service';
 import { AudioService, formatarTempo } from '../core/audio.service';
+import type { Trilha } from '../core/audio.service';
 import { GravadorService, blobParaArquivo } from '../core/gravador.service';
-import type { FaixaKit, KitMusical, Louvor } from '../core/models';
+import type { FaixaKit, KitMusical } from '../core/models';
 
 /** Faixa gravada ainda não salva (rascunho do modal de gravação). */
 interface FaixaRascunho {
@@ -30,7 +31,7 @@ interface FaixaRascunho {
 const FORM_VAZIO = { titulo: '', descricao: '' };
 
 /**
- * Área de Kit musical: somente administradores (doc em `admins/{uid}`)
+ * Área de Kit vocal: somente administradores (doc em `admins/{uid}`)
  * gravam kits de músicas pelo microfone do aparelho e os outros
  * membros ouvem pelo player global do app.
  */
@@ -47,7 +48,7 @@ const FORM_VAZIO = { titulo: '', descricao: '' };
     IonItemSliding, IonItemOptions, IonItemOption, IonProgressBar,
   ],
 })
-/** Lista kits musicais, grava novos faixas e controla a reprodução. */
+/** Lista kits vocais, grava novas faixas e controla a reprodução. */
 export class KitsPage implements OnDestroy {
   readonly store = inject(StoreService);
   readonly auth = inject(AuthService);
@@ -62,6 +63,10 @@ export class KitsPage implements OnDestroy {
   readonly faixasRascunho = signal<FaixaRascunho[]>([]);
   /** Blob da última gravação pronta, ainda não batizada como faixa. */
   readonly ultimaGravacao = signal<Blob | null>(null);
+  /** URL do áudio escolhido de fora (gravado em outro aplicativo). */
+  readonly arquivoExternoUrl = signal<string | null>(null);
+  /** Duração medida do arquivo externo (0 quando o formato não informa). */
+  readonly duracaoExterna = signal(0);
   readonly tituloFaixa = signal('');
   readonly enviando = signal(false);
   readonly erroModal = signal<string | null>(null);
@@ -109,7 +114,7 @@ export class KitsPage implements OnDestroy {
     addIcons({
       addOutline, trashOutline, saveOutline, closeOutline, micOutline,
       stopOutline, playCircleOutline, pauseCircleOutline, musicalNotesOutline,
-      personCircleOutline, timerOutline,
+      personCircleOutline, timerOutline, folderOpenOutline,
     });
   }
 
@@ -132,6 +137,7 @@ export class KitsPage implements OnDestroy {
   fecharGravacao(): void {
     if (this.gravador.gravando()) this.gravador.cancelar();
     else this.gravador.limpar();
+    this.limparArquivoExterno();
     this.descartarRascunho();
     this.erroModal.set(null);
     this.gravacaoAberta.set(false);
@@ -140,6 +146,7 @@ export class KitsPage implements OnDestroy {
 
   async iniciarGravacao(): Promise<void> {
     this.ultimaGravacao.set(null);
+    this.limparArquivoExterno();
     this.erroModal.set(null);
     await this.gravador.iniciar();
     if (this.gravador.erro()) this.erroModal.set(this.gravador.erro());
@@ -148,6 +155,66 @@ export class KitsPage implements OnDestroy {
   async pararGravacao(): Promise<void> {
     const blob = await this.gravador.parar();
     if (blob) this.ultimaGravacao.set(blob);
+    else if (this.gravador.erro()) this.erroModal.set(this.gravador.erro());
+  }
+
+  /** Prévia da faixa atual: gravação do microfone ou arquivo externo. */
+  readonly urlPrevia = computed(
+    () => this.arquivoExternoUrl() ?? this.gravador.urlGravacao(),
+  );
+
+  /**
+   * Escolhe um áudio já gravado em outro aplicativo (gravação, nota de voz,
+   * download) e o usa como faixa do kit, sem passar pelo microfone.
+   */
+  async escolherArquivoExterno(evento: Event): Promise<void> {
+    const input = evento.target as HTMLInputElement;
+    const arquivo = input.files?.[0];
+    input.value = '';
+    if (!arquivo) return;
+    if (arquivo.type && !arquivo.type.startsWith('audio/')) {
+      this.erroModal.set('Escolha um arquivo de áudio (mp3, m4a, wav...).');
+      return;
+    }
+    this.erroModal.set(null);
+    this.ultimaGravacao.set(null);
+    this.gravador.limpar();
+    this.limparArquivoExterno();
+    const url = URL.createObjectURL(arquivo);
+    this.arquivoExternoUrl.set(url);
+    this.ultimaGravacao.set(arquivo);
+    this.duracaoExterna.set(await this.medirDuracao(url));
+    // Sugere o nome do arquivo como título da faixa.
+    if (!this.tituloFaixa().trim()) {
+      this.tituloFaixa.set(arquivo.name.replace(/\.[^.]+$/, ''));
+    }
+  }
+
+  /** Duração real do arquivo escolhido; 0 quando o navegador não informa. */
+  private async medirDuracao(url: string): Promise<number> {
+    return new Promise((resolve) => {
+      const audio = new Audio();
+      let resolvido = false;
+      const concluir = (duracao: number) => {
+        if (resolvido) return;
+        resolvido = true;
+        audio.removeAttribute('src');
+        resolve(Number.isFinite(duracao) && duracao > 0 ? duracao : 0);
+      };
+      audio.preload = 'metadata';
+      audio.onloadedmetadata = () => concluir(audio.duration);
+      audio.onerror = () => concluir(0);
+      audio.src = url;
+      // Rede lenta: não deixa o fluxo preso esperando o cabeçalho do arquivo.
+      setTimeout(() => concluir(audio.duration), 8000);
+    });
+  }
+
+  private limparArquivoExterno(): void {
+    const url = this.arquivoExternoUrl();
+    if (url) URL.revokeObjectURL(url);
+    this.arquivoExternoUrl.set(null);
+    this.duracaoExterna.set(0);
   }
 
   /** Fixa a gravação atual como faixa do rascunho (precisa de título). */
@@ -155,11 +222,12 @@ export class KitsPage implements OnDestroy {
     const blob = this.ultimaGravacao();
     const titulo = this.tituloFaixa().trim();
     if (!blob || !titulo) return;
+    const externo = !!this.arquivoExternoUrl();
     const faixa: FaixaRascunho = {
       id: crypto.randomUUID(),
       titulo,
       blob,
-      duracao: this.gravador.duracaoSegundos(),
+      duracao: externo ? this.duracaoExterna() : this.gravador.duracaoSegundos(),
       // Object URL próprio: o do gravador é revogado em `limpar()`.
       previewUrl: URL.createObjectURL(blob),
     };
@@ -167,6 +235,7 @@ export class KitsPage implements OnDestroy {
     this.tituloFaixa.set('');
     this.ultimaGravacao.set(null);
     this.gravador.limpar();
+    this.limparArquivoExterno();
   }
 
   removerFaixaRascunho(id: string): void {
@@ -175,7 +244,7 @@ export class KitsPage implements OnDestroy {
     this.faixasRascunho.update((lista) => lista.filter((f) => f.id !== id));
   }
 
-  /** Envia as faixas ao Storage e grava (ou completa) o kit no Firestore. */
+  /** Envia as faixas em partes ao Firestore e grava (ou completa) o kit. */
   async salvar(): Promise<void> {
     const pendentes = this.faixasRascunho();
     const alvo = this.kitAlvo();
@@ -238,6 +307,7 @@ export class KitsPage implements OnDestroy {
     for (const f of this.faixasRascunho()) URL.revokeObjectURL(f.previewUrl);
     this.faixasRascunho.set([]);
     this.ultimaGravacao.set(null);
+    this.limparArquivoExterno();
     this.tituloFaixa.set('');
   }
 
@@ -263,17 +333,32 @@ export class KitsPage implements OnDestroy {
       this.audio.parar();
       return;
     }
-    const louvor: Louvor = {
-      id: faixa.id,
-      titulo: faixa.titulo,
-      criadoEm: faixa.criadoEm,
-      atualizadoEm: kit.atualizadoEm,
+    // Fila = todas as faixas do kit: ⏮/⏭ no player pulam entre elas.
+    // `emKit` liga a barra de play (só os Kits têm barra visível).
+    const alvo = this.trilhaFaixa(kit, faixa);
+    await this.audio.tocar(
+      alvo.louvor,
+      alvo.midia,
+      this.faixasDe(kit).map((f) => this.trilhaFaixa(kit, f)),
+      true,
+    );
+  }
+
+  /** Monta a trilha navegável (louvor + mídia) de uma faixa do kit. */
+  private trilhaFaixa(kit: KitMusical, faixa: FaixaKit): Trilha {
+    return {
+      louvor: {
+        id: faixa.id,
+        titulo: faixa.titulo,
+        criadoEm: faixa.criadoEm,
+        atualizadoEm: kit.atualizadoEm,
+      },
+      midia: {
+        url: faixa.url,
+        tipo: 'mp3',
+        ...(faixa.duracaoSegundos ? { duracaoSegundos: faixa.duracaoSegundos } : {}),
+      },
     };
-    await this.audio.tocar(louvor, {
-      url: faixa.url,
-      tipo: 'mp3',
-      ...(faixa.duracaoSegundos ? { duracaoSegundos: faixa.duracaoSegundos } : {}),
-    });
   }
 
   estaTocando(faixa: FaixaKit): boolean {
@@ -285,7 +370,7 @@ export class KitsPage implements OnDestroy {
   }
 
   podeExcluir(): boolean {
-    // As regras do Firestore/Storage negam kit para não-administradores,
+    // As regras do Firestore negam kit para não-administradores,
     // então a UI esconde o excluir em vez de deixar a exclusão falhar.
     return this.podeGravar();
   }

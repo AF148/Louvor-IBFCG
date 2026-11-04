@@ -287,6 +287,7 @@ export class PlaylistsPage implements OnInit {
   async tocarItem(item: ItemPlaylist): Promise<void> {
     const louvores = this.store.louvores();
     const l = louvores.find((x) => x.id === item.louvorId);
+    // Sem fila: a barra de play existe só para os Kits.
     if (l?.midia) await this.audio.tocar(l, l.midia);
   }
 

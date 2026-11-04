@@ -24,7 +24,7 @@ export const routes: Routes = [
     loadComponent: () => import('./playlists/playlists.page').then((m) => m.PlaylistsPage),
   },
   {
-    // Kit musical: líder grava, membros ouvem.
+    // Kit vocal: líder grava, membros ouvem.
     path: 'kits',
     loadComponent: () => import('./kits/kits.page').then((m) => m.KitsPage),
   },

@@ -2,6 +2,7 @@ import { Injectable, OnDestroy, signal } from '@angular/core';
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
+  sendEmailVerification,
   signInWithEmailAndPassword,
   signOut,
   updateProfile,
@@ -36,6 +37,12 @@ export class AuthService implements OnDestroy {
    * editáveis por qualquer membro (Repertório, Playlists) usam `estaLogado`.
    */
   readonly ehAdmin = signal(false);
+  /**
+   * E-mail da conta atual já confirmado (`user.emailVerified`).
+   * Usado pela Perfil para exibir o selo "E-mail confirmado" e o botão
+   * de reenvio enquanto for falso.
+   */
+  readonly emailConfirmado = signal(false);
 
   private iniciado = false;
   private removerEscuta?: () => void;
@@ -52,6 +59,7 @@ export class AuthService implements OnDestroy {
     this.removerEscuta = onAuthStateChanged(auth(), (user) => {
       const logado = user && !user.isAnonymous ? user : null;
       this.usuario.set(logado);
+      this.emailConfirmado.set(logado?.emailVerified ?? false);
       if (logado) {
         void this.carregarFoto(logado.uid);
         this.escutarAdmin(logado.uid);
@@ -117,8 +125,13 @@ export class AuthService implements OnDestroy {
     this.carregando.set(true);
     try {
       const credencial = await signInWithEmailAndPassword(auth(), email, senha);
-      this.usuario.set(credencial.user);
-      return credencial.user;
+      const user = credencial.user;
+      this.usuario.set(user);
+      this.emailConfirmado.set(user.emailVerified);
+      // Não reenvia o e-mail de verificação no login: um envio a cada
+      // tentativa faz o Gmail tratar a mensagem como spam. O reenvio
+      // fica no cadastro e no botão da tela de Perfil.
+      return user;
     } catch (err) {
       throw this.tratarErro(err);
     } finally {
@@ -146,6 +159,9 @@ export class AuthService implements OnDestroy {
       );
       const user = credencial.user;
       await updateProfile(user, { displayName: nome.trim() });
+      // Um único e-mail de confirmação no cadastro. Falha de envio não
+      // impede criar a conta; o reenvio fica no Perfil.
+      void this.reenviarConfirmacao();
 
       const agora = Date.now();
       const perfil: Usuario = {
@@ -158,6 +174,7 @@ export class AuthService implements OnDestroy {
       };
       await this.salvarPerfil(perfil);
       this.usuario.set(user);
+      this.emailConfirmado.set(user.emailVerified);
       return perfil;
     } catch (err) {
       throw this.tratarErro(err);
@@ -236,6 +253,32 @@ export class AuthService implements OnDestroy {
     this.erro.set(null);
     this.fotoPerfil.set(null);
     await signOut(auth());
+  }
+
+  /**
+   * Envia (ou reenvia) o e-mail de verificação da conta atual para a
+   * caixa de entrada. Usado no cadastro, no login com conta não confirmada
+   * e pelo botão da tela de Perfil.
+   */
+  async reenviarConfirmacao(): Promise<void> {
+    const user = this.usuario() ?? auth().currentUser;
+    if (!user || user.isAnonymous) return;
+    await sendEmailVerification(user);
+  }
+
+  /**
+   * Recarrega a conta no servidor para refletir a confirmação feita pelo
+   * link do e-mail e atualiza o sinal `emailConfirmado`.
+   */
+  async atualizarConfirmacao(): Promise<void> {
+    const user = this.usuario() ?? auth().currentUser;
+    if (!user || user.isAnonymous) return;
+    await user.reload();
+    const atual = auth().currentUser;
+    if (atual) {
+      this.usuario.set(atual);
+      this.emailConfirmado.set(atual.emailVerified);
+    }
   }
 
   /** Traduz os códigos de erro do Firebase para mensagens legíveis. */

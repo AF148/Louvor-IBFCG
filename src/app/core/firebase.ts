@@ -14,15 +14,11 @@ import {
   persistentMultipleTabManager,
   type Firestore,
 } from 'firebase/firestore';
-import { getStorage, type FirebaseStorage } from 'firebase/storage';
-import { getDatabase, type Database } from 'firebase/database';
 import { environment } from '../../environments/environment';
 
 let appRef: FirebaseApp | null = null;
 let authRef: Auth | null = null;   
 let firestoreRef: Firestore | null = null;
-let storageRef: FirebaseStorage | null = null;
-let rtdbRef: Database | null = null;
 let readyPromise: Promise<void> | null = null;
 let authErrorRef: Error | null = null;
 
@@ -83,21 +79,6 @@ export function firestore(): Firestore {
     });
   }
   return firestoreRef;
-}
-
-export function storage(): FirebaseStorage {
-  if (!storageRef) {
-    storageRef = getStorage(firebaseApp());
-  }
-  return storageRef;
-}
-
-/** Realtime Database. Usa o `databaseURL` do environment. */
-export function realtimeDb(): Database {
-  if (!rtdbRef) {
-    rtdbRef = getDatabase(firebaseApp());
-  }
-  return rtdbRef;
 }
 
 export function auth(): Auth {

@@ -89,6 +89,21 @@
             <ion-note><ion-icon name="shield-checkmark-outline"></ion-icon> Conta Scale</ion-note>
           </div>
           <p class="sobre-texto">{{ perfil()?.sobreMim || 'Conte um pouco sobre você e sua participação na equipe.' }}</p>
+
+          <!-- Confirmação do e-mail (conta ainda não verificada) -->
+          @if (!auth.emailConfirmado()) {
+            <ion-note class="aviso-perfil" color="warning">
+              Confirme seu e-mail para proteger sua conta. Enviamos um link para {{ usuario.email }}.
+            </ion-note>
+            <div class="acoes-imagem">
+              <ion-button fill="outline" size="small" (click)="reenviarConfirmacao()" [disabled]="enviandoConfirmacao()">
+                @if (enviandoConfirmacao()) { <ion-spinner name="crescent"></ion-spinner> } @else { Reenviar e-mail }
+              </ion-button>
+              <ion-button fill="clear" size="small" (click)="verificarConfirmacao()">
+                Já confirmei
+              </ion-button>
+            </div>
+          }
         </section>
 
         <section class="secao-perfil habilidades-secao">
@@ -207,7 +222,7 @@
           <ion-select-option [value]="opcao.value">{{ opcao.label }}</ion-select-option>
         }
       </ion-select>
-      <p class="dica-papel">Os kits musicais são gravados pela equipe de administração.</p>
+      <p class="dica-papel">Os kits vocais são gravados pela equipe de administração.</p>
 
       <ion-textarea class="campo-sobre" label="Sobre mim" labelPlacement="stacked" [ngModel]="sobreMim()" (ngModelChange)="sobreMim.set($event)" rows="5" placeholder="Conte um pouco sobre você"></ion-textarea>
       <h2 class="rotulo-habilidades">Habilidades no grupo</h2>

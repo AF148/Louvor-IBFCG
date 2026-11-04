@@ -1,4 +1,4 @@
-<ion-app>
+<ion-app [class.com-player]="audio.emKit() && !!audio.atual()">
   <ion-menu contentId="main-content" side="start" type="overlay">
     <ion-content>
       <ion-list>
@@ -32,6 +32,8 @@
     }
   </a>
 
+  <!-- Barra de play: somente para faixas de Kit vocal. -->
+  @if (audio.emKit()) {
   @if (audio.atual(); as faixa) {
   <ion-footer>
     <ion-toolbar class="player">
@@ -44,6 +46,17 @@
         </div>
 
         <div class="player-controles">
+          @if (audio.temFila()) {
+            <ion-button
+              fill="clear"
+              size="small"
+              (click)="audio.anterior()"
+              [disabled]="!audio.podeAnterior()"
+              aria-label="Faixa anterior"
+            >
+              <ion-icon slot="icon-only" name="play-skip-back-outline"></ion-icon>
+            </ion-button>
+          }
           <ion-button fill="clear" size="small" (click)="audio.avancar(-10)" aria-label="Voltar 10 segundos">
             <ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon>
           </ion-button>
@@ -53,6 +66,17 @@
           <ion-button fill="clear" size="small" (click)="audio.avancar(10)" aria-label="Avançar 10 segundos">
             <ion-icon slot="icon-only" name="chevron-forward-outline"></ion-icon>
           </ion-button>
+          @if (audio.temFila()) {
+            <ion-button
+              fill="clear"
+              size="small"
+              (click)="audio.proxima()"
+              [disabled]="!audio.podeProxima()"
+              aria-label="Próxima faixa"
+            >
+              <ion-icon slot="icon-only" name="play-skip-forward-outline"></ion-icon>
+            </ion-button>
+          }
           <ion-button fill="clear" size="small" (click)="audio.parar()" aria-label="Parar">
             <ion-icon slot="icon-only" name="close-outline"></ion-icon>
           </ion-button>
@@ -70,6 +94,7 @@
       }
     </ion-toolbar>
   </ion-footer>
+  }
   }
 
   <!-- Barra de navegação inferior - apenas Início e Repertório -->

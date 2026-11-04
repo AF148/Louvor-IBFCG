@@ -1,6 +1,6 @@
 <ion-header [translucent]="true">
   <ion-toolbar>
-    <ion-title>Kit musical</ion-title>
+    <ion-title>Kit vocal</ion-title>
     @if (podeGravar()) {
       <ion-buttons slot="end">
         <ion-button fill="clear" (click)="abrirGravacao()" aria-label="Gravar kit">
@@ -14,7 +14,7 @@
 <ion-content [fullscreen]="true">
   <ion-header collapse="condense">
     <ion-toolbar>
-      <ion-title size="large">Kit musical</ion-title>
+      <ion-title size="large">Kit vocal</ion-title>
     </ion-toolbar>
   </ion-header>
 
@@ -106,7 +106,7 @@
             Gravar primeiro kit
           </ion-button>
         } @else {
-          <p>Nenhum kit musical disponível ainda.</p>
+          <p>Nenhum kit vocal disponível ainda.</p>
         }
       </div>
     }
@@ -224,7 +224,7 @@
           @if (kitAlvo(); as kit) {
             Acrescentar em "{{ kit.titulo }}"
           } @else {
-            Gravar kit musical
+            Gravar kit vocal
           }
         </ion-title>
       </ion-toolbar>
@@ -255,6 +255,16 @@
       }
 
       <div class="gravador">
+        <!-- Fora dos @if: os botões "Usar arquivo" e "Trocar arquivo"
+             precisam acessá-lo mesmo quando a prévia está visível. -->
+        <input
+          #arquivoExterno
+          type="file"
+          accept="audio/*"
+          hidden
+          (change)="escolherArquivoExterno($event)"
+        >
+
         @if (gravador.gravando()) {
           <div class="gravador-status">
             <span class="gravador-tempo">{{ formatarTempo(gravador.duracaoSegundos()) }}</span>
@@ -271,7 +281,18 @@
             [disabled]="enviando()"
           >
             <ion-icon slot="start" [name]="gravador.gravando() ? 'stop-outline' : 'mic-outline'"></ion-icon>
-            {{ gravador.gravando() ? 'Parar gravação' : 'Gravar música' }}
+            {{ gravador.gravando() ? 'Encerrar' : 'Gravar música' }}
+          </ion-button>
+          <ion-button
+            class="botao-arquivo"
+            expand="block"
+            fill="outline"
+            color="medium"
+            (click)="arquivoExterno.click()"
+            [disabled]="enviando() || gravador.gravando()"
+          >
+            <ion-icon slot="start" name="folder-open-outline"></ion-icon>
+            Usar arquivo já gravado
           </ion-button>
         }
 
@@ -281,7 +302,7 @@
 
         @if (ultimaGravacao()) {
           <div class="gravador-previa">
-            <audio [src]="gravador.urlGravacao()" controls></audio>
+            <audio [src]="urlPrevia()" controls></audio>
             <ion-item>
               <ion-label position="stacked">Nome da música</ion-label>
               <ion-input
@@ -292,10 +313,17 @@
               ></ion-input>
             </ion-item>
             <div class="gravador-acoes">
-              <ion-button fill="outline" (click)="iniciarGravacao()">
-                <ion-icon slot="start" name="mic-outline"></ion-icon>
-                Regravar
-              </ion-button>
+              @if (arquivoExternoUrl()) {
+                <ion-button fill="outline" (click)="arquivoExterno.click()">
+                  <ion-icon slot="start" name="folder-open-outline"></ion-icon>
+                  Trocar arquivo
+                </ion-button>
+              } @else {
+                <ion-button fill="outline" (click)="iniciarGravacao()">
+                  <ion-icon slot="start" name="mic-outline"></ion-icon>
+                  Regravar
+                </ion-button>
+              }
               <ion-button (click)="adicionarFaixa()" [disabled]="!tituloFaixa().trim()">
                 <ion-icon slot="start" name="add-outline"></ion-icon>
                 Adicionar faixa
@@ -367,4 +395,4 @@
     { text: 'Excluir', role: 'destructive', handler: () => confirmarExclusaoFaixa() }
   ]"
 ></ion-alert>
-<!-- Tela de kits musicais: gravação pelos administradores e escuta pelos membros. -->
+<!-- Tela de kits vocais: gravação pelos administradores e escuta pelos membros. -->

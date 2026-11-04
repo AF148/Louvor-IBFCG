@@ -1,5 +1,5 @@
 .login-conteudo {
-  --padding-bottom: 104px;
+  --padding-bottom: calc(104px + var(--app-player-altura, 0px));
   --background: #f5f7fa;
 }
 
