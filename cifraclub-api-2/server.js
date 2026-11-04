@@ -36,6 +36,16 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.log(`Porta ${PORT} já em uso — provavelmente a API já está rodando em http://localhost:${PORT}.`);
+    console.log('Nada a fazer: use-a normalmente (ou feche o processo antigo se quiser reiniciar).');
+    process.exit(0);
+  }
+  console.error('Não foi possível subir a API de cifras:', err.message);
+  process.exit(1);
+});
+
 server.listen(PORT, () => {
   console.log(`Servidor rodando em http://localhost:${PORT}`);
   console.log(`Teste a API Cifra Club (2) em: http://localhost:${PORT}/api/cifra-club-2?artist=legiao-urbana&song=tempo-perdido`);
