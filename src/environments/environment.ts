@@ -12,10 +12,8 @@ export const environment = {
     messagingSenderId: '1035514933974',
     appId: '1:1035514933974:web:cf8a47e5d196c4a9738f77',
     measurementId: 'G-19PHKYW8N7',
-    // Realtime Database (presença online/offline). Fica vazio enquanto o
-    // banco não for criado no Console; depois cole a URL que ele mostrar,
-    // ex.: https://louvor-ibfcg-default-rtdb.firebaseio.com
-    databaseURL: '',
+    // Realtime Database (presença online/offline).
+    databaseURL: 'https://louvor-ibfcg-default-rtdb.firebaseio.com',
   },
   // Chave da YouTube Data API v3 (gratuita): https://console.cloud.google.com
   // Necessária para listar as músicas de uma playlist importada.
