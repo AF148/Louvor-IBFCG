@@ -48,10 +48,62 @@ firebase deploy --only firestore:rules
 Isso aplica `firestore.rules`. Veja a seção 10 para a
 ordem correta (cadastre os administradores no Console antes de enviar).
 
+### 3.1 Realtime Database (presença online/offline)
+
+O app mostra quem está online na tela de Participantes usando o
+**Realtime Database** do Firebase (plano Spark, grátis). Ative assim no
+Console (**Firefox**):
+
+1. No menu lateral, em **Build**, clique em **Realtime Database** →
+   **Create database**.
+2. Escolha o local **us-central1** e a opção **Start in locked mode** →
+   **Enable**.
+3. Na aba **Rules** do banco recém-criado, apague o conteúdo e cole o
+   conteúdo do arquivo `database.rules.json` do projeto, depois clique em
+   **Publish**:
+
+   ```json
+   {
+     "rules": {
+       "presenca": {
+         ".read": "auth != null",
+         "$uid": {
+           ".write": "auth != null && auth.uid === $uid"
+         }
+       }
+     }
+   }
+   ```
+
+4. Ainda na aba **Data**, copie a **URL** do banco (algo como
+   `https://louvor-ibfcg-default-rtdb.firebaseio.com`) e cole em
+   `databaseURL: '...'` **nos dois** arquivos
+   `src/environments/environment.ts` e `src/environments/environment.prod.ts`.
+5. Rebuild (`npm run build` e `npx cap sync android`).
+
+> Sem a URL preenchida o app funciona normalmente — só não mostra a
+> bolinha de online/offline em Participantes.
+
+**Depois disso, desative o login anônimo**: em **Authentication →
+Sign-in method**, clique em **Anonymous** → **Disable** → **Save**. O app
+não usa mais login anônimo; todo mundo entra com e-mail e senha.
+
 ## 4. Logo da igreja
 
-Coloque o logo em `src/assets/logo-igreja.svg`. Enquanto o arquivo não existir,
-a tela inicial mostra um placeholder no lugar.
+A logo oficial é **`src/assets/img/logo_IBFCG.png`** (512×481, fundo
+transparente). É dela que saem:
+
+- o **favicon / ícone do navegador** (`src/assets/icon/favicon.png`);
+- os **ícones e splash do Android** (`android/app/src/main/res/`);
+- o ícone exibido na tela inicial do app.
+
+Para regerar tudo a partir da logo, rode (PowerShell):
+
+```
+powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\opencode\gera-icones.ps1"
+```
+
+A tela inicial também usa `src/assets/logo-igreja.svg` quando ele existe.
 
 ## 5. Rodar
 
@@ -68,8 +120,12 @@ O app busca cifra em **duas origens, nesta ordem** (`CifraService.basesCifra()`)
 
 | # | Origem | Quando é usada | Fonte que responde |
 |---|---|---|---|
-| 1 | `cifraApi.baseUrl` → `http://localhost:3001` | no seu PC, com o servidor local ligado | **Cifra Club** (cobertura completa) |
-| 2 | `cifraApi.fallbackUrl` → API pública na Vercel | celular, ou PC com o servidor desligado | **Cifralize** (cobertura parcial) |
+| 1 | `cifraApi.baseUrl` → `http://localhost:3001` | no seu PC, com o servidor local ligado | **Cifra Club** (direto) |
+| 2 | `cifraApi.fallbackUrl` → API pública na Vercel | celular, ou PC com o servidor desligado | **Cifra Club** (por ponte) + Cifralize |
+
+As **duas têm a cobertura completa do Cifra Club**. A diferença é só o
+caminho: o local acessa o site direto; a Vercel, bloqueada pela Akamai,
+passa pelo leitor público `r.jina.ai` (ver 6.2).
 
 Se a primeira nem responder (porta fechada, timeout, 5xx), o app cai
 automaticamente para a segunda. **A tela nunca quebra por causa disso.**
@@ -111,11 +167,20 @@ Publicada em **`https://louvor-ibfcg-cifraclub-api-2.vercel.app`**
 
   A pasta `.vercel/` na raiz do projeto já está vinculada (conta `af148`).
 
-> **Limite importante:** o Cifra Club usa Akamai e **bloqueia IP de
-> datacenter** (testado: mesmo código retorna 403 da Vercel e 200 do seu PC).
-> Da Vercel a busca cai no **Cifralize**, que não tem todos os louvores.
-> Por isso a ordem local-primeiro: **em casa, com `npm run dev`, você tem a
-> cobertura total do Cifra Club**; fora de casa vale o que o Cifralize tem.
+> **Como a Vercel contorna o bloqueio:** o Cifra Club usa Akamai e **bloqueia
+> IP de datacenter** (testado: mesmo código retorna 403 da Vercel e 200 do seu
+> PC). Quando o acesso direto dá 403, a API busca a mesma página pelo
+> **`r.jina.ai`** (leitor público, sem chave) e recebe o HTML original — o
+> parser continua o mesmo. Resultado: **celular com os servidores desligados
+> busca cifra no Cifra Club igual ao PC**.
+>
+> - Limite do leitor: **20 requisições por minuto** (cabeçalho
+>   `x-ratelimit-limit`). Buscar 1 louvor usa 1 ou 2.
+> - Se estiver fora de cota, a API cai no **Cifralize** e, na falta dele,
+>   avisa *"O Cifra Club bloqueou esta consulta (403). Tente de novo em
+>   alguns segundos."*
+> - Os scripts de conferência estão em `cifraclub-api-2/diagnostico/`
+>   (`testa-jina.js`, `testa-jina-rajada.js`, `compara-local-vercel.js`).
 
 ### 6.3 Usando a busca
 

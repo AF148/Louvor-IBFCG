@@ -2,7 +2,8 @@ rules_version = '2';
 
 // Permissões do app Scale — três níveis:
 //
-//  1. Anônimo (login automático do app): somente LEITURA dos dados da igreja.
+//  1. Sem conta: nenhum acesso. O app nem abre as escutas — o `authGuard`
+//     manda para a tela de login (não existe login anônimo).
 //  2. Membro logado (e-mail/senha): leitura + escrita em Repertório (louvores),
 //     Playlists e no próprio perfil (usuarios/{uid}).
 //  3. Administrador: escreve em tudo — Escala (cultos/planilhas), Participantes,
@@ -18,7 +19,8 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Quem entrou com e-mail/senha (exclui o acesso anônimo de leitura).
+    // Quem entrou com e-mail/senha. O teste de provedor fica como trava
+    // extra: um eventual token anônimo não passa daqui.
     function membro() {
       return autenticado() &&
         request.auth.token.firebase.sign_in_provider != 'anonymous';

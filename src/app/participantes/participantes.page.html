@@ -36,7 +36,7 @@
             <div>
               <strong>{{ p.nome }}</strong>
               <br>
-              <ion-note>{{ labelPapel(p.papel) }}</ion-note>
+              <ion-note>{{ labelPapel(posicaoDe(p)) }}</ion-note>
             </div>
           </div>
         }
@@ -56,6 +56,12 @@
         </ion-segment-button>
       }
     </ion-segment>
+
+    <!-- Presença: quantas pessoas da equipe estão no app agora. -->
+    <ion-note [color]="presenca.conectados() ? 'success' : 'medium'">
+      <ion-icon [name]="presenca.conectados() ? 'radio-button-on' : 'radio-button-off'"></ion-icon>
+      {{ presenca.conectados() }} online agora
+    </ion-note>
   </div>
 
   <ion-list>
@@ -63,12 +69,24 @@
       <ion-item-sliding>
         <ion-item button (click)="abrirEdicao(p)">
           <ion-avatar slot="start">
-            <ion-icon [name]="iconePapel(p.papel)"></ion-icon>
+            <ion-icon [name]="iconePapel(posicaoDe(p))"></ion-icon>
           </ion-avatar>
           <ion-label>
-            <h3>{{ p.nome }}</h3>
+            <h3>
+              {{ p.nome }}
+              @if (estaOnline(p)) {
+                <ion-icon class="ponto-online" name="radio-button-on" color="success" aria-label="Online"></ion-icon>
+              } @else if (ultimoAcesso(p)) {
+                <ion-icon class="ponto-offline" name="radio-button-off" color="medium" [attr.aria-label]="ultimoAcesso(p)"></ion-icon>
+              }
+            </h3>
             <div class="sub-linha">
-              <ion-badge [color]="p.ativo ? 'success' : 'medium'">{{ labelPapel(p.papel) }}</ion-badge>
+              <ion-badge [color]="p.ativo ? 'success' : 'medium'">{{ labelPapel(posicaoDe(p)) }}</ion-badge>
+              @if (estaOnline(p)) {
+                <ion-note color="success">· online agora</ion-note>
+              } @else if (ultimoAcesso(p)) {
+                <ion-note color="medium">· {{ ultimoAcesso(p) }}</ion-note>
+              }
               @if (p.telefone) { <ion-note>· {{ p.telefone }}</ion-note> }
               @if (p.email) { <ion-note>· {{ p.email }}</ion-note> }
               @if (p.nascimento) { <ion-note>· 🎂 {{ p.nascimento }}</ion-note> }
@@ -121,7 +139,7 @@
         </ion-item>
 
         <ion-item>
-          <ion-label position="stacked">Papel</ion-label>
+          <ion-label position="stacked">Posição na equipe (reserva)</ion-label>
           <ion-select [(ngModel)]="rascunho().papel" name="papel" interface="popover">
             @for (p of papeis; track p.value) {
               <ion-select-option [value]="p.value">
@@ -130,6 +148,15 @@
               </ion-select-option>
             }
           </ion-select>
+        </ion-item>
+
+        <ion-item lines="none">
+          <ion-label class="ion-text-wrap">
+            <ion-note>
+              A posição exibida vem do <strong>Papel escolhido no Perfil</strong> de cada
+              pessoa. Este valor só vale para quem ainda não tem conta no app.
+            </ion-note>
+          </ion-label>
         </ion-item>
 
         <ion-item>

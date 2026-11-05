@@ -104,6 +104,15 @@ ion-content {
   margin-top: 2px;
 }
 
+// Bolinha de presença ao lado do nome: verde quando a pessoa está no app,
+// cinza com o último acesso quando não está.
+.ponto-online,
+.ponto-offline {
+  font-size: 15px;
+  vertical-align: -2px;
+  margin-left: 6px;
+}
+
 // Miniaturas dos vídeos do YouTube na playlist (16:9).
 ion-thumbnail {
   width: 80px;

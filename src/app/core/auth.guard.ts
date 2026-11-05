@@ -4,14 +4,13 @@ import { Router } from '@angular/router';
 import { AuthService } from './auth.service';
 
 /**
- * Guarda da área de perfil: sem conta cadastrada (ou logada) não passa.
+ * Guarda de área privada: sem conta cadastrada (ou logada) não passa.
  *
  * Espera a sessão inicial ficar conhecida antes de decidir — sem isso o
  * guard rodaria antes do Firebase restaurar a sessão salva e mandaria até
  * usuário logado para a tela de login toda vez que abrisse o app.
  *
- * O usuário anônimo (que o `initFirebase` cria só para leitura dos dados)
- * não vale como login: só conta e-mail/senha.
+ * Não existe login anônimo: só conta e-mail/senha vale como acesso.
  */
 /** Protege rotas privadas e devolve a pessoa não autenticada para a tela de login. */
 export const authGuard: CanActivateFn = async (estado) => {

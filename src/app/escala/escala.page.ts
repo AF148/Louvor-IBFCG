@@ -19,6 +19,7 @@ import {
 } from 'ionicons/icons';
 import { StoreService } from '../core/store.service';
 import { AuthService } from '../core/auth.service';
+import { PresencaService } from '../core/presenca.service';
 import { AudioService, formatarDataExtenso, formatarData } from '../core/audio.service';
 import { hojeISO } from '../core/aniversario.service';
 import { PlanilhaService } from '../core/planilha.service';
@@ -92,6 +93,8 @@ const PAPEIS_ORDEM: Papel[] = ['instrumentista', 'cantor', 'operador', 'som', 'm
 export class EscalaPage implements OnInit {
   readonly store = inject(StoreService);
   readonly audio = inject(AudioService);
+  /** Posição da equipe: vem do Perfil de cada pessoa. */
+  readonly presenca = inject(PresencaService);
   /** Público: o template usa `podeEditar()` para mostrar só a visão da escala. */
   readonly auth = inject(AuthService);
   private readonly planilha = inject(PlanilhaService);
@@ -163,8 +166,11 @@ export class EscalaPage implements OnInit {
     const mapa: Record<string, Participante[]> = {
       instrumentista: [], cantor: [], operador: [], som: [], ministrante: [], outro: [],
     };
+    // Agrupa pela posição vinda do Perfil de cada pessoa — o que ela mesma
+    // escolhe — e não pelo campo do cadastro em Participantes.
     for (const p of this.participantes()) {
-      if (mapa[p.papel]) mapa[p.papel].push(p);
+      const papel = this.presenca.posicaoDe(p);
+      if (mapa[papel]) mapa[papel].push(p);
     }
     return mapa;
   });
@@ -179,6 +185,8 @@ export class EscalaPage implements OnInit {
   }
 
   ngOnInit(): void {
+    // Liga a leitura dos perfis (posição da equipe) junto com os dados.
+    this.presenca.iniciar();
     void this.carregarPlanilhaSalva();
   }
 

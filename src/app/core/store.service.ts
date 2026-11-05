@@ -28,16 +28,12 @@ import { MidiaService } from './midia.service';
 import type { Culto, KitMusical, Louvor, MensagemVoz, Participante, PlanilhaEscala, Playlist } from './models';
 
 /**
- * Texto claro quando o login anônimo falha: sem ele as regras do Firestore
- * negam leitura e escrita, e a tela fica vazia sem explicação.
+ * Aviso exibido quando não há sessão: sem conta logada o Firestore nega a
+ * leitura, e a tela ficaria vazia sem explicar o motivo.
  */
-function mensagemLogin(erro: Error): string {
-  return (
-    `Login anônimo falhou (${erro.message}). ` +
-    'No console do Firebase, em Authentication → Sign-in method, ative "Anônimo" ' +
-    'e, em Authentication → Settings → User actions, marque "Enable create (sign-up)".'
-  );
-}
+const MENSAGEM_LOGIN =
+  'Faça login com seu e-mail e senha para ver os dados da equipe. ' +
+  'Ainda não tem conta? Toque em "Criar conta" na tela de acesso.';
 
 /**
  * Acesso genérico ao Firestore com estado reativo por sinal.
@@ -70,6 +66,8 @@ export class StoreService implements OnDestroy {
 
   private subscricoes: Array<() => void> = [];
   private iniciado = false;
+  /** Evita duas chamadas simultâneas de `iniciar` abrirem escutas duplicadas. */
+  private iniciando = false;
 
   /** Coleções observadas em tempo real e o campo usado na ordenação. */
   private readonly mapa: Array<{
@@ -88,30 +86,32 @@ export class StoreService implements OnDestroy {
 
   /** Liga as escutas em tempo real. Idempotente. */
   async iniciar(): Promise<void> {
-    if (this.iniciado) return;
-    this.iniciado = true;
+    if (this.iniciado || this.iniciando) return;
+    this.iniciando = true;
     this.carregando.set(true);
-    await initFirebase();
-
-    // Sem credenciais configuradas, o app segue funcionando com listas vazias
-    // em vez de quebrar a tela.
-    const { isFirebaseConfigured, authError } = await import('./firebase');
-    if (!isFirebaseConfigured()) {
-      this.carregando.set(false);
-      this.erro.set(
-        'Firebase não configurado. Preencha src/environments/environment.ts para habilitar a sincronização.',
-      );
-      return;
-    }
-
-    // Login anônimo falhou = regras do Firestore vão negar tudo. Avisar em
-    // vez de deixar a lista vazia em silêncio.
-    const falhaLogin = authError();
-    if (falhaLogin) {
-      this.erro.set(mensagemLogin(falhaLogin));
-    }
-
     try {
+      await initFirebase();
+
+      // Sem credenciais configuradas, o app segue funcionando com listas vazias
+      // em vez de quebrar a tela.
+      const { isFirebaseConfigured, currentUser } = await import('./firebase');
+      if (!isFirebaseConfigured()) {
+        this.erro.set(
+          'Firebase não configurado. Preencha src/environments/environment.ts para habilitar a sincronização.',
+        );
+        return;
+      }
+
+      // Sem conta logada o Firestore nega a leitura. Em vez de abrir as escutas
+      // e receber `permission-denied`, esperamos o login — o `authGuard` manda
+      // para /login e, depois do acesso, as páginas chamam `iniciar` de novo.
+      if (!currentUser()) {
+        this.erro.set(MENSAGEM_LOGIN);
+        return;
+      }
+
+      this.erro.set(null);
+      this.iniciado = true;
       for (const { nome, campo, alvo } of this.mapa) {
         const q = query(collection(firestore(), nome), orderBy(campo, 'asc'));
         const unsub = onSnapshot(
@@ -121,19 +121,16 @@ export class StoreService implements OnDestroy {
               snap.docs.map((d) => ({ id: d.id, ...d.data() }) as DocumentData),
             ),
           (err: Error) => {
-            // Com login falho, o motivo real já está no aviso de auth — não
-            // sobrescrever com o genérico "Missing or insufficient permissions".
-            if (!authError()) {
-              this.erro.set(`Falha ao ler "${nome}": ${err.message}`);
-            }
+            this.erro.set(`Falha ao ler "${nome}": ${err.message}`);
           },
         );
         this.subscricoes.push(unsub);
       }
-      this.carregando.set(false);
     } catch (err) {
-      this.carregando.set(false);
       this.erro.set(err instanceof Error ? err.message : String(err));
+    } finally {
+      this.carregando.set(false);
+      this.iniciando = false;
     }
   }
 

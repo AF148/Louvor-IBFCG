@@ -3,6 +3,10 @@ const cheerio = require('cheerio');
 
 const CIFRACLUB_URL = "https://www.cifraclub.com.br/";
 const CIFRALIZE_URL = "https://cifralize.com.br/";
+// Leitor público (sem chave): busca a página do Cifra Club do lado dele e
+// devolve o HTML original. É o que permite a API pública funcionar em
+// IP de datacenter, que a Akamai bloqueia com 403. Limite: 20 req/min.
+const JINA_URL = "https://r.jina.ai/";
 
 class CifraClub {
     constructor() {
@@ -41,13 +45,17 @@ class CifraClub {
             if (response.status >= 400) {
                 result.error = response.status === 404
                     ? 'Música não encontrada no Cifra Club. Confira o nome do artista e o título como aparecem no site.'
-                    : `O Cifra Club respondeu com o erro ${response.status}.`;
+                    : response.status === 403 || response.bloqueada
+                        ? 'O Cifra Club bloqueou esta consulta (403). Tente de novo em alguns segundos.'
+                        : `O Cifra Club respondeu com o erro ${response.status}.`;
                 return result;
             }
             
-            // Se a URL final for diferente da requisitada, atualizar
-            if (response.request.res.responseUrl !== result.cifraclub_url) {
-                result.cifraclub_url = response.request.res.responseUrl;
+            // Só aceita a URL final se ainda for do Cifra Club: quando a página
+            // veio pelo Jina, `responseUrl` aponta para o leitor.
+            const urlFinal = response.request?.res?.responseUrl;
+            if (urlFinal && urlFinal !== result.cifraclub_url && ehUrlDoCifraClub(urlFinal)) {
+                result.cifraclub_url = urlFinal;
             }
             
             const $ = cheerio.load(response.data);
@@ -62,11 +70,52 @@ class CifraClub {
     }
 
     async buscarPagina(url) {
-        return this.session.get(url, {
+        const resposta = await this.session.get(url, {
             maxRedirects: 5,
             // Receber 404 como resposta permite tentar resolver o slug no catálogo.
             validateStatus: status => status >= 200 && status < 500
         });
+
+        // A Akamai bloqueia IP de datacenter (Vercel, Render, etc.) com 403.
+        // Nesse caso o Jina Reader busca a página do lado dele e nos devolve
+        // o HTML original — a API pública passa a ter a cobertura da local.
+        if (resposta.status === 403 || resposta.status === 401) {
+            const viaJina = await this.buscarViaJina(url);
+            if (viaJina) return viaJina;
+            resposta.bloqueada = true;
+        }
+        return resposta;
+    }
+
+    /**
+     * Busca a mesma página pelo r.jina.ai (leitor público, sem chave).
+     *
+     * Devolve `null` quando não dá para usar (fora de cota, rede), para o
+     * chamador manter o erro original. O Jina responde 200 até para página
+     * inexistente: nesse caso devolvemos 404, para o fluxo de catálogo do
+     * artista continuar resolvendo o slug certo.
+     */
+    async buscarViaJina(url) {
+        try {
+            const resposta = await this.session.get(`${JINA_URL}${url}`, {
+                headers: { 'X-Return-Format': 'html' },
+                // Folga para o app (20 s) e para o limite da Vercel (30 s).
+                timeout: 12000,
+                validateStatus: status => status >= 200 && status < 500
+            });
+            if (resposta.status >= 400) return null;
+
+            const html = String(resposta.data || '');
+            const temCifra = /data-chord-container|data-chord-content|cifra_cnt|js-tab-content/.test(html);
+            const tituloGenerico = /<title[^>]*>\s*Cifra Club - Seu site de cifras e tablaturas\s*<\/title>/i.test(html);
+            if (!temCifra && tituloGenerico) {
+                return { ...resposta, status: 404 };
+            }
+            resposta.data = html;
+            return resposta;
+        } catch {
+            return null;
+        }
     }
 
     async buscarUrlNoCatalogo(artist, song) {
@@ -268,6 +317,16 @@ function normalizarSlug(input) {
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '');
+}
+
+// A URL final só interessa se ainda for do Cifra Club: quando a página veio
+// pelo Jina, `responseUrl` aponta para o leitor (https://r.jina.ai/...).
+function ehUrlDoCifraClub(url) {
+    try {
+        return new URL(url).hostname.endsWith('cifraclub.com.br');
+    } catch {
+        return false;
+    }
 }
 
 // Função exportada para Vercel

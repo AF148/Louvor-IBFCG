@@ -12,9 +12,11 @@ import {
   addOutline, trashOutline, createOutline, saveOutline, closeOutline,
   peopleOutline, personAddOutline, cafeOutline, callOutline,
   mailOutline, musicalNotesOutline, personOutline,
+  radioButtonOn, radioButtonOff,
 } from 'ionicons/icons';
 import { StoreService } from '../core/store.service';
 import { AuthService } from '../core/auth.service';
+import { PresencaService } from '../core/presenca.service';
 import type { Participante, Papel } from '../core/models';
 
 const PAPEIS: { value: Papel; label: string; icone: string }[] = [
@@ -65,6 +67,8 @@ export class ParticipantesPage implements OnInit {
   readonly store = inject(StoreService);
   /** Público: o template esconde novo/editar/excluir para não-administradores. */
   readonly auth = inject(AuthService);
+  /** Posição (vinda do Perfil) e presença online/offline de cada pessoa. */
+  readonly presenca = inject(PresencaService);
   readonly podeEditar = computed(() => this.auth.ehAdmin());
 
   readonly modalAberto = signal(false);
@@ -76,9 +80,10 @@ export class ParticipantesPage implements OnInit {
   readonly filtroPapel = signal<Papel | 'todos'>('todos');
 
   readonly participantes = computed(() => {
+    // O filtro usa a posição vinda do Perfil da pessoa, não o campo do cadastro.
     const base = this.filtroPapel() === 'todos'
       ? this.store.participantes()
-      : this.store.participantes().filter((p) => p.papel === this.filtroPapel());
+      : this.store.participantes().filter((p) => this.presenca.posicaoDe(p) === this.filtroPapel());
     return [...base].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
   });
 
@@ -97,11 +102,28 @@ export class ParticipantesPage implements OnInit {
       addOutline, trashOutline, createOutline, saveOutline, closeOutline,
       peopleOutline, personAddOutline, cafeOutline, callOutline,
       mailOutline, musicalNotesOutline, personOutline,
+      radioButtonOn, radioButtonOff,
     });
   }
 
   ngOnInit(): void {
     void this.store.iniciar();
+    this.presenca.iniciar();
+  }
+
+  /** Posição da pessoa: o Papel que ela escolheu no Perfil. */
+  posicaoDe(p: Participante): Papel {
+    return this.presenca.posicaoDe(p);
+  }
+
+  /** Verdadeiro se a pessoa estiver conectada agora. */
+  estaOnline(p: Participante): boolean {
+    return this.presenca.estaOnline(p);
+  }
+
+  /** "online agora" / "visto há 3 min"; vazio para quem nunca entrou. */
+  ultimoAcesso(p: Participante): string {
+    return this.presenca.ultimoAcesso(p);
   }
 
   abrirNovo(): void {
