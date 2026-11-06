@@ -49,6 +49,7 @@ import { AudioService, formatarTempo } from './core/audio.service';
 import { VersiculoService } from './core/versiculo.service';
 import { DeepLinkService } from './core/deep-link.service';
 import { AuthService } from './core/auth.service';
+import { LembreteEscalaService } from './core/lembrete-escala.service';
 
 interface NavItem {
   rota: string;
@@ -86,6 +87,8 @@ export class AppComponent implements OnInit, AfterViewInit {
   readonly versiculo = inject(VersiculoService);
   readonly deepLink = inject(DeepLinkService);
   readonly auth = inject(AuthService);
+  /** Só de injetar já agenda os lembretes de escala (efeito no construtor). */
+  readonly lembreteEscala = inject(LembreteEscalaService);
   private readonly router = inject(Router);
 
   @ViewChild('audioEl') audioRef?: ElementRef<HTMLAudioElement>;
