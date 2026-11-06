@@ -62,6 +62,69 @@ ion-content {
   }
 }
 
+/* Filtros de Participantes: barra arrastável na horizontal. */
+.filtros {
+  padding-top: 10px;
+}
+
+.filtros-barra {
+  position: relative; /* offsetParent das pílulas: necessário para centralizar. */
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-behavior: smooth;
+  padding: 4px 16px;
+  touch-action: pan-x;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.filtro {
+  flex: 0 0 auto; /* nunca encolhe: o nome do filtro aparece inteiro. */
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid #d0d0d0;
+  border-radius: 999px;
+  background: #fff;
+  color: #000;
+  font: inherit;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  cursor: pointer;
+
+  ion-icon {
+    font-size: 1rem;
+  }
+
+  &.ativo {
+    background: #3880ff;
+    border-color: #3880ff;
+    color: #fff;
+  }
+}
+
+.filtros-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px 0;
+  font-size: 0.8rem;
+  color: #444;
+
+  strong {
+    color: #000;
+    font-size: 0.9rem;
+  }
+}
+
 .selecao-em-lote ion-label {
   flex: 1;
 }

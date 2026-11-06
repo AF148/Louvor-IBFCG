@@ -1,4 +1,4 @@
-# Configuração do Scale
+# Configuração do Louvor-IBFCG
 
 Passos para o app funcionar com dados salvos na nuvem.
 
@@ -205,7 +205,7 @@ lista de vídeos com miniatura, e cada linha toca o vídeo **dentro do app**
 (player embutido, com anterior/próxima e botão "Abrir no YouTube").
 
 Também funciona o compartilhamento: mande o link do YouTube **para o app**
-(Android oferece o Scale na lista de compartilhamento) ou abra o link com
+(Android oferece o Louvor-IBFCG na lista de compartilhamento) ou abra o link com
 `?youtubePlaylist=...` na web.
 
 1. Abra https://console.cloud.google.com e crie (ou escolha) um projeto.
@@ -340,7 +340,7 @@ Para o e-mail 1 chegar na caixa de entrada do Gmail:
 1. Console → **Authentication → Templates → Email address verification**
    (endereço de e-mail). O template padrão já funciona sem nada; para
    personalizar, clique em **Edit** e mude **Sender name** (ex.:
-   `Scale - Louvor IBFCG`) e o texto. **Save**.
+   `Louvor-IBFCG - Louvor IBFCG`) e o texto. **Save**.
 2. Confirme em **Authentication → Settings → User actions** que
    **Email enumeration protection** não impede o envio (padrão: pode ficar
    ligado; o app trata o erro).

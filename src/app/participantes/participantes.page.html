@@ -44,24 +44,48 @@
     </ion-card>
   }
 
-  <div class="toolbar-acao">
-    <ion-segment [(ngModel)]="filtroPapel" (ionChange)="filtroPapel.set($any($event.detail.value))">
-      <ion-segment-button value="todos">
-        <ion-label>Todos</ion-label>
-      </ion-segment-button>
+  <!-- Filtros da equipe: barra de "pílulas" que rola na horizontal.
+       Arrastar para o lado troca o filtro (o mais centralizado vira o ativo). -->
+  <div class="filtros">
+    <div
+      class="filtros-barra"
+      #barraFiltros
+      (scroll)="aoRolarBarra()"
+      (pointerdown)="aoPressionarBarra()"
+    >
+      <button
+        type="button"
+        class="filtro"
+        data-valor="todos"
+        [class.ativo]="filtroPapel() === 'todos'"
+        (click)="selecionar('todos')"
+      >
+        <ion-icon name="apps-outline"></ion-icon>
+        Todos
+      </button>
       @for (p of papeis; track p.value) {
-        <ion-segment-button [value]="p.value">
-          <ion-icon [name]="p.icone" slot="start"></ion-icon>
-          <ion-label>{{ p.label }}</ion-label>
-        </ion-segment-button>
+        <button
+          type="button"
+          class="filtro"
+          [attr.data-valor]="p.value"
+          [class.ativo]="filtroPapel() === p.value"
+          (click)="selecionar(p.value)"
+        >
+          <ion-icon [name]="p.icone"></ion-icon>
+          {{ p.label }}
+        </button>
       }
-    </ion-segment>
+    </div>
 
-    <!-- Presença: quantas pessoas da equipe estão no app agora. -->
-    <ion-note [color]="presenca.conectados() ? 'success' : 'medium'">
-      <ion-icon [name]="presenca.conectados() ? 'radio-button-on' : 'radio-button-off'"></ion-icon>
-      {{ presenca.conectados() }} online agora
-    </ion-note>
+    <!-- Nome inteiro do filtro selecionado + presença da equipe. -->
+    <div class="filtros-status">
+      <strong>{{ rotuloFiltro() }}</strong>
+      <span>· {{ participantes().length }} participantes</span>
+      <ion-note [color]="presenca.conectados() ? 'success' : 'medium'">
+        <ion-icon [name]="presenca.conectados() ? 'radio-button-on' : 'radio-button-off'"></ion-icon>
+        {{ presenca.conectados() }} online agora
+      </ion-note>
+    </div>
   </div>
 
   <ion-list>

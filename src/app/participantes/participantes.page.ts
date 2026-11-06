@@ -1,11 +1,11 @@
-import { Component, OnInit, inject, computed, signal } from '@angular/core';
+import { Component, OnInit, AfterViewInit, ViewChild, ElementRef, inject, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton,
   IonIcon, IonList, IonItem, IonLabel, IonInput,
   IonItemOption, IonItemSliding, IonItemOptions, IonModal, IonBadge,
   IonNote, IonSelect, IonSelectOption, IonAlert, IonCard, IonCardHeader,
-  IonCardTitle, IonCardContent, IonAvatar, IonChip, IonSegment, IonSegmentButton,
+  IonCardTitle, IonCardContent, IonAvatar, IonChip,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
@@ -59,11 +59,11 @@ const FORM_VAZIO: FormParticipante = {
     IonIcon, IonList, IonItem, IonLabel, IonInput,
     IonItemOption, IonItemSliding, IonItemOptions, IonModal, IonBadge,
     IonNote, IonSelect, IonSelectOption, IonAlert, IonCard, IonCardHeader,
-    IonCardTitle, IonCardContent, IonAvatar, IonChip, IonSegment, IonSegmentButton,
+    IonCardTitle, IonCardContent, IonAvatar, IonChip,
   ],
 })
 /** Mantém a lista de participantes e as funções usadas para montar as escalas. */
-export class ParticipantesPage implements OnInit {
+export class ParticipantesPage implements OnInit, AfterViewInit {
   readonly store = inject(StoreService);
   /** Público: o template esconde novo/editar/excluir para não-administradores. */
   readonly auth = inject(AuthService);
@@ -78,6 +78,18 @@ export class ParticipantesPage implements OnInit {
   readonly participanteExcluir = signal<Participante | null>(null);
   readonly erroExclusao = signal<string | null>(null);
   readonly filtroPapel = signal<Papel | 'todos'>('todos');
+
+  /** Barra horizontal dos filtros (arrastável). */
+  @ViewChild('barraFiltros') barraFiltros?: ElementRef<HTMLDivElement>;
+  /** Evita que o scroll programático (centralizar) dispare a troca de filtro. */
+  private programandoScroll = false;
+  private timerSincronia?: ReturnType<typeof setTimeout>;
+
+  /** Nome inteiro do filtro atual — sempre visível na linha de status. */
+  readonly rotuloFiltro = computed(() => {
+    const f = this.filtroPapel();
+    return f === 'todos' ? 'Todos' : this.labelPapel(f);
+  });
 
   readonly participantes = computed(() => {
     // O filtro usa a posição vinda do Perfil da pessoa, não o campo do cadastro.
@@ -109,6 +121,63 @@ export class ParticipantesPage implements OnInit {
   ngOnInit(): void {
     void this.store.iniciar();
     this.presenca.iniciar();
+  }
+
+  ngAfterViewInit(): void {
+    // Começa com a barra no início ("Todos" visível).
+    window.setTimeout(() => this.centralizar(this.filtroPapel()), 0);
+  }
+
+  /** Seleciona um filtro e leva a pílula para o centro da barra. */
+  selecionar(valor: Papel | 'todos'): void {
+    this.filtroPapel.set(valor);
+    this.centralizar(valor);
+  }
+
+  /** Usuário começou a arrastar a barra de filtros. */
+  aoPressionarBarra(): void {
+    this.programandoScroll = false;
+  }
+
+  /**
+   * Ao parar de rolar (arrasto do usuário), o filtro passa a ser o da pílula
+   * mais centralizada — é assim que "arrastar" troca o filtro.
+   */
+  aoRolarBarra(): void {
+    if (this.programandoScroll) return;
+    if (this.timerSincronia) clearTimeout(this.timerSincronia);
+    this.timerSincronia = setTimeout(() => {
+      const barra = this.barraFiltros?.nativeElement;
+      if (!barra) return;
+      const meio = barra.getBoundingClientRect().left + barra.clientWidth / 2;
+      let melhor: Papel | 'todos' | null = null;
+      let melhorDist = Infinity;
+      for (const b of barra.querySelectorAll<HTMLButtonElement>('button.filtro')) {
+        const r = b.getBoundingClientRect();
+        const d = Math.abs(r.left + r.width / 2 - meio);
+        if (d < melhorDist) {
+          melhorDist = d;
+          melhor = (b.dataset['valor'] ?? 'todos') as Papel | 'todos';
+        }
+      }
+      if (melhor && melhor !== this.filtroPapel()) this.filtroPapel.set(melhor);
+    }, 120);
+  }
+
+  /** Centraliza a pílula de um filtro dentro da barra (scroll suave). */
+  private centralizar(valor: Papel | 'todos'): void {
+    const barra = this.barraFiltros?.nativeElement;
+    if (!barra) return;
+    const alvo = [...barra.querySelectorAll<HTMLButtonElement>('button.filtro')]
+      .find((b) => b.dataset['valor'] === valor);
+    if (!alvo) return;
+    this.programandoScroll = true;
+    barra.scrollTo({
+      left: Math.max(0, alvo.offsetLeft - (barra.clientWidth - alvo.offsetWidth) / 2),
+      behavior: 'smooth',
+    });
+    if (this.timerSincronia) clearTimeout(this.timerSincronia);
+    window.setTimeout(() => (this.programandoScroll = false), 450);
   }
 
   /** Posição da pessoa: o Papel que ela escolheu no Perfil. */
