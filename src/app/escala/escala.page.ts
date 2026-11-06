@@ -198,12 +198,25 @@ export class EscalaPage implements OnInit {
       this.nomePlanilha.set(salva.nome);
       this.planilhaImportada.set(salva.importada);
       this.aba.set('planilha');
-      this.previaPlanilha.set({
+      const previa: ResultadoPlanilha = {
         tabela: { cabecalhos: salva.cabecalhos, linhas: salva.dados.map((linha) => linha.valores) },
         linhas: salva.cultos.map((culto, i) => ({ culto, semParticipante: salva.semParticipantes[i]?.nomes ?? [] })),
         ignoradas: salva.ignoradas,
         colunasIgnoradas: salva.colunasIgnoradas,
-      });
+      };
+      this.previaPlanilha.set(previa);
+      // Planilha nunca importada (ou a escala ficou vazia): grava os cultos
+      // agora — a aba Cultos e o Calendário passam a mostrar tudo.
+      const escalaVazia = this.store.cultos().length === 0 && previa.linhas.length > 0;
+      if ((!salva.importada || escalaVazia) && this.podeEditar()) {
+        const { salvos, atualizados } = await this.importarCultosDaPlanilha(previa);
+        if (salvos || atualizados) {
+          this.mostrarResultadoNaPagina(
+            `Escala sincronizada com a planilha: ${salvos} culto(s) novo(s), ${atualizados} atualizado(s).`,
+            false,
+          );
+        }
+      }
     } catch {
       // A lista de cultos continua disponível quando a persistência não puder ser acessada.
     }
@@ -640,8 +653,19 @@ export class EscalaPage implements OnInit {
       this.previaPlanilha.set(resultado);
       this.aba.set('planilha');
       try {
-        await this.persistirPlanilha(false);
-        this.mostrarResultadoNaPagina('Planilha salva no aplicativo.', false);
+        // Importa na hora: a aba Cultos e o Calendário passam a refletir o
+        // arquivo escolhido, sem precisar apertar nenhum botão.
+        const { salvos, atualizados } = await this.importarCultosDaPlanilha(resultado);
+        const partes = [
+          salvos ? `${salvos} culto(s) novo(s)` : '',
+          atualizados ? `${atualizados} atualizado(s)` : '',
+        ].filter(Boolean);
+        this.mostrarResultadoNaPagina(
+          partes.length
+            ? `Planilha salva. Escala atualizada: ${partes.join(' e ')} — Cultos e Calendário já estão ao dia.`
+            : 'Planilha salva. A escala já estava igual a ela.',
+          false,
+        );
       } catch (err) {
         this.mostrarResultadoNaPagina(err instanceof Error ? err.message : 'Planilha aberta, mas não foi possível salvá-la no aplicativo.', true);
       }
@@ -687,17 +711,17 @@ export class EscalaPage implements OnInit {
     if (!previa) return;
     this.importandoPlanilha.set(true);
     try {
-      const { salvos, pulados } = await this.planilha.importar(previa.linhas);
+      const { salvos, atualizados } = await this.importarCultosDaPlanilha(previa);
       const semCadastro = this.nomesSemCadastro(previa).length;
-      const partes = [`Importação concluída: ${salvos} culto(s) salvo(s).`];
-      if (pulados) partes.push(`${pulados} já existiam e foram pulados.`);
+      const partes: string[] = [];
+      if (salvos) partes.push(`${salvos} culto(s) salvo(s).`);
+      if (atualizados) partes.push(`${atualizados} atualizado(s) com as informações da planilha.`);
+      if (!partes.length) partes.push('A escala já estava igual à planilha.');
       if (semCadastro) {
         partes.push(
           `${semCadastro} nome(s) não estão na equipe — cadastre em Participantes para atribuí-los.`,
         );
       }
-      this.planilhaImportada.set(true);
-      await this.persistirPlanilha(true);
       this.mostrarResultadoNaPagina(partes.join(' '), false);
     } catch (err) {
       this.mostrarResultadoNaPagina(
@@ -707,5 +731,22 @@ export class EscalaPage implements OnInit {
     } finally {
       this.importandoPlanilha.set(false);
     }
+  }
+
+  /**
+   * Grava os cultos da planilha na coleção `cultos` e marca a planilha como
+   * importada. É essa coleção que a aba **Cultos** e o **Calendário** leem
+   * em tempo real, então os dois atualizam sozinhos depois daqui.
+   */
+  private async importarCultosDaPlanilha(
+    previa: ResultadoPlanilha,
+  ): Promise<{ salvos: number; atualizados: number }> {
+    const resultado = await this.planilha.importar(
+      previa.linhas,
+      previa.tabela.cabecalhos,
+    );
+    this.planilhaImportada.set(true);
+    await this.persistirPlanilha(true);
+    return resultado;
   }
 }
