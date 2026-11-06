@@ -68,7 +68,7 @@ export class PerfilPage {
   readonly acaoCapa = signal(false);
   readonly aviso = signal<string | null>(null);
   readonly habilidadesDisponiveis = [
-    'Vocalista', 'Instrumentista', 'Tecladista', 'Violão',
+    'Ministrante', 'Vocalista', 'Instrumentista', 'Tecladista', 'Violão',
     'Guitarra', 'Baixista', 'Baterista', 'Operação de áudio', 'Transmissão',
   ];
   readonly banners = BANNERS_PERFIL;
