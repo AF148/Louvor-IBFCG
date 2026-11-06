@@ -1,6 +1,6 @@
 rules_version = '2';
 
-// Permissões do app Scale — três níveis:
+// Permissões do app Louvor-IBFCG — três níveis:
 //
 //  1. Sem conta: nenhum acesso. O app nem abre as escutas — o `authGuard`
 //     manda para a tela de login (não existe login anônimo).
@@ -10,8 +10,9 @@ rules_version = '2';
 //     Kits musicais e Mensagens.
 //
 // Os administradores ficam na coleção `admins` (id = uid do usuário, dados
-// livres: nome, email, criadoEm...). Os docs são criados no Console do
-// Firebase, então trocar um administrador não exige recompilar o app.
+// livres: nome, email, criadoEm...). Podem ser criados no Console do
+// Firebase ou promovidos pelo próprio app por outro administrador — as
+// regras exigem que quem escreve já seja admin (nada de auto-promoção).
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -98,12 +99,14 @@ service cloud.firestore {
       }
     }
 
-    // Lista de administradores: membros leem (o app verifica se o usuário
-    // logado é admin); escrita bloqueada no cliente — só o Console do
-    // Firebase altera, para não permitir auto-promoção pelo app.
+    // Lista de administradores: membros leem (o app exibe o selo de admin e
+    // a lista de promovíveis); a escrita exige já ser administrador — quem
+    // tem um doc em admins/{request.auth.uid} promove ou remove os outros,
+    // então não existe auto-promoção pelo app. O Console continua valendo
+    // como caminho de emergência (bypassa as regras).
     match /admins/{uid} {
       allow read: if membro();
-      allow write: if false;
+      allow write: if admin();
     }
 
     // Coleções desconhecidas: leitura para quem está logado, escrita negada.

@@ -8,7 +8,7 @@ import {
   updateProfile,
   type User,
 } from 'firebase/auth';
-import { doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore';
 import { auth, firestore, isFirebaseConfigured } from './firebase';
 import type { Papel, Usuario } from './models';
 
@@ -38,6 +38,11 @@ export class AuthService implements OnDestroy {
    */
   readonly ehAdmin = signal(false);
   /**
+   * uids de todos os administradores (`admins` é legível por membros).
+   * Usado em Participantes para exibir o selo e promover/remover pelo app.
+   */
+  readonly adminsUids = signal<ReadonlySet<string>>(new Set());
+  /**
    * E-mail da conta atual já confirmado (`user.emailVerified`).
    * Usado pela Perfil para exibir o selo "E-mail confirmado" e o botão
    * de reenvio enquanto for falso.
@@ -47,6 +52,7 @@ export class AuthService implements OnDestroy {
   private iniciado = false;
   private removerEscuta?: () => void;
   private removerEscutaAdmin?: () => void;
+  private removerEscutaRoster?: () => void;
 
   /**
    * Observa a sessão para manter o `usuario` atualizado.
@@ -63,20 +69,24 @@ export class AuthService implements OnDestroy {
       if (logado) {
         void this.carregarFoto(logado.uid);
         this.escutarAdmin(logado.uid);
+        this.escutarRosterAdmins();
       } else {
         this.fotoPerfil.set(null);
         this.perfil.set(null);
         this.ehAdmin.set(false);
+        this.adminsUids.set(new Set());
         this.removerEscutaAdmin?.();
         this.removerEscutaAdmin = undefined;
+        this.removerEscutaRoster?.();
+        this.removerEscutaRoster = undefined;
       }
     });
   }
 
   /**
    * Acompanha `admins/{uid}` para manter o `ehAdmin` atualizado.
-   * Escrita nessa coleção é bloqueada nas regras: só o Console do Firebase
-   * promove ou remove administradores.
+   * A escrita nessa coleção é restrita às regras: só quem **já é**
+   * administrador promove ou remove (nada de auto-promoção pelo app).
    */
   private escutarAdmin(uid: string): void {
     this.removerEscutaAdmin?.();
@@ -89,9 +99,44 @@ export class AuthService implements OnDestroy {
     );
   }
 
+  /** Lista geral de administradores (leitura liberada a membros pelas regras). */
+  private escutarRosterAdmins(): void {
+    this.removerEscutaRoster?.();
+    this.removerEscutaRoster = undefined;
+    if (!isFirebaseConfigured()) return;
+    this.removerEscutaRoster = onSnapshot(
+      collection(firestore(), 'admins'),
+      (snap) => this.adminsUids.set(new Set(snap.docs.map((d) => d.id))),
+      () => this.adminsUids.set(new Set()),
+    );
+  }
+
+  /**
+   * Promove uma conta a administrador gravando `admins/{uid}`.
+   * As regras do Firestore só aceitam a escrita de quem já é admin —
+   * um eventual erro de permissão vira a mensagem abaixo.
+   */
+  async promoverAdmin(uid: string): Promise<void> {
+    if (!this.ehAdmin()) throw new Error('Somente administradores podem promover.');
+    await setDoc(doc(firestore(), 'admins', uid), {
+      criadoEm: Date.now(),
+      criadoPor: this.usuario()?.uid ?? '',
+    });
+  }
+
+  /** Remove um administrador; bloqueia deixar a equipe sem nenhum. */
+  async removerAdmin(uid: string): Promise<void> {
+    if (!this.ehAdmin()) throw new Error('Somente administradores podem remover administradores.');
+    if (this.adminsUids().has(uid) && this.adminsUids().size <= 1) {
+      throw new Error('Este é o último administrador. Promova outro antes de remover.');
+    }
+    await deleteDoc(doc(firestore(), 'admins', uid));
+  }
+
   ngOnDestroy(): void {
     this.removerEscuta?.();
     this.removerEscutaAdmin?.();
+    this.removerEscutaRoster?.();
   }
 
   /**

@@ -93,11 +93,18 @@
       <ion-item-sliding>
         <ion-item button (click)="abrirEdicao(p)">
           <ion-avatar slot="start">
-            <ion-icon [name]="iconePapel(posicaoDe(p))"></ion-icon>
+            @if (fotoDe(p); as foto) {
+              <img class="foto-lista" [src]="foto" [alt]="p.nome">
+            } @else {
+              <ion-icon [name]="iconePapel(posicaoDe(p))"></ion-icon>
+            }
           </ion-avatar>
           <ion-label>
             <h3>
               {{ p.nome }}
+              @if (ehAdminDaConta(p)) {
+                <ion-icon class="selo-admin" name="shield-checkmark-outline" color="primary" aria-label="Administrador"></ion-icon>
+              }
               @if (estaOnline(p)) {
                 <ion-icon class="ponto-online" name="radio-button-on" color="success" aria-label="Online"></ion-icon>
               } @else if (ultimoAcesso(p)) {
@@ -244,12 +251,46 @@
           <ion-textarea [(ngModel)]="rascunho().observacoes" name="observacoes" rows="3" placeholder="Opcional"></ion-textarea>
         </ion-item>
 
+        <!-- Conta do app: promover/retirar administrador pelo próprio aplicativo. -->
+        @if (podeEditar()) {
+          @if (emEdicao(); as p) {
+            <div class="conta-admin">
+              <p class="conta-admin-titulo">
+                <ion-icon name="shield-checkmark-outline"></ion-icon>
+                <strong>Conta do app</strong>
+              </p>
+              @if (uidDaConta(p)) {
+                <div class="conta-admin-linha">
+                  <span>{{ ehAdminDaConta(p) ? 'É administrador' : 'Não é administrador' }}</span>
+                  @if (ehAdminDaConta(p)) {
+                    <ion-button size="small" fill="outline" color="danger" (click)="retirarAdmin(p)">
+                      Retirar admin
+                    </ion-button>
+                  } @else {
+                    <ion-button size="small" fill="outline" (click)="tornarAdmin(p)">
+                      Tornar admin
+                    </ion-button>
+                  }
+                </div>
+              } @else {
+                <ion-note>
+                  Esta pessoa ainda não tem conta no app. Ela precisa entrar
+                  uma vez para poder ser administradora.
+                </ion-note>
+              }
+            </div>
+          }
+        }
+
         @if (aviso(); as texto) {
           <ion-chip outline color="danger">{{ texto }}</ion-chip>
         }
 
         <div class="rodape-modal">
           @if (podeEditar()) {
+            @if (emEdicao()) {
+              <ion-button type="button" color="danger" fill="outline" (click)="excluirAtual()">Excluir</ion-button>
+            }
             <ion-button type="button" fill="outline" (click)="fechar()">Cancelar</ion-button>
             <ion-button type="submit" [disabled]="!form.valid">Salvar</ion-button>
           } @else {

@@ -14,6 +14,7 @@ import {
   mailOutline, musicalNotesOutline, personOutline,
   radioButtonOn, radioButtonOff,
   appsOutline, videocamOutline, volumeHighOutline, ellipsisHorizontalOutline,
+  shieldCheckmarkOutline,
 } from 'ionicons/icons';
 import { StoreService } from '../core/store.service';
 import { AuthService } from '../core/auth.service';
@@ -144,6 +145,7 @@ export class ParticipantesPage implements OnInit, AfterViewInit {
       mailOutline, musicalNotesOutline, personOutline,
       radioButtonOn, radioButtonOff,
       appsOutline, videocamOutline, volumeHighOutline, ellipsisHorizontalOutline,
+      shieldCheckmarkOutline,
     });
   }
 
@@ -212,6 +214,61 @@ export class ParticipantesPage implements OnInit, AfterViewInit {
   /** Posição da pessoa: o Papel que ela escolheu no Perfil. */
   posicaoDe(p: Participante): Papel {
     return this.presenca.posicaoDe(p);
+  }
+
+  /** Foto de perfil da conta vinculada (quando a pessoa tem conta no app). */
+  fotoDe(p: Participante): string | undefined {
+    return this.presenca.perfilDaConta(p)?.fotoUrl;
+  }
+
+  /** uid da conta vinculada — é sobre ela que pesa a condição de admin. */
+  uidDaConta(p: Participante): string | undefined {
+    return this.presenca.perfilDaConta(p)?.uid;
+  }
+
+  /** Verdadeiro se a conta vinculada for administradora. */
+  ehAdminDaConta(p: Participante): boolean {
+    const uid = this.uidDaConta(p);
+    return !!uid && this.auth.adminsUids().has(uid);
+  }
+
+  /** Promove a conta da pessoa a administrador (somente admins podem). */
+  async tornarAdmin(p: Participante): Promise<void> {
+    const uid = this.uidDaConta(p);
+    if (!uid) return;
+    try {
+      await this.auth.promoverAdmin(uid);
+      this.aviso.set(null);
+    } catch (err) {
+      this.aviso.set(this.mensagemPermissao(err));
+    }
+  }
+
+  /** Retira a condição de administrador da conta da pessoa. */
+  async retirarAdmin(p: Participante): Promise<void> {
+    const uid = this.uidDaConta(p);
+    if (!uid) return;
+    try {
+      await this.auth.removerAdmin(uid);
+      this.aviso.set(null);
+    } catch (err) {
+      this.aviso.set(this.mensagemPermissao(err));
+    }
+  }
+
+  /** Erro do Firebase traduzido para o aviso do modal. */
+  private mensagemPermissao(err: unknown): string {
+    const code = (err as { code?: string })?.code ?? '';
+    if (code === 'permission-denied') {
+      return 'Sem permissão: apenas administradores alteram administradores.';
+    }
+    return err instanceof Error ? err.message : String(err);
+  }
+
+  /** Excluir o participante que está aberto no modal (via confirmação). */
+  excluirAtual(): void {
+    const p = this.emEdicao();
+    if (p) this.remover(p);
   }
 
   /** Verdadeiro se a pessoa estiver conectada agora. */
@@ -322,6 +379,8 @@ export class ParticipantesPage implements OnInit, AfterViewInit {
     const p = this.participanteExcluir();
     if (!p) return;
     this.store.remover('participantes', p.id);
+    // Se a exclusão veio do modal de edição, fecha o modal junto.
+    if (this.emEdicao()?.id === p.id) this.fechar();
     this.participanteExcluir.set(null);
   }
 

@@ -152,6 +152,14 @@ export class PresencaService implements OnDestroy {
     return email ? this.perfisPorEmail().get(email) : undefined;
   }
 
+  /**
+   * Conta do app vinculada a este participante (foto, papel, uid) — usada
+   * em Participantes para mostrar a foto de perfil e promover admin.
+   */
+  perfilDaConta(p: Participante): Usuario | undefined {
+    return this.perfilDe(p);
+  }
+
   private estaFresca(estado: Presenca): boolean {
     return Date.now() - estado.visto < JANELA_OFFLINE_MS;
   }

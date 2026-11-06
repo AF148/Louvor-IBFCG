@@ -1,3 +1,61 @@
+/* Foto de perfil no lugar do ícone (quando a pessoa tem conta no app). */
+.foto-lista {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* Selo de administrador ao lado do nome na lista. */
+.selo-admin {
+  font-size: 0.95rem;
+  vertical-align: -2px;
+}
+
+/* Seção "Conta do app" (promover/retirar admin) no modal de edição. */
+.conta-admin {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  background: #f7f9fc;
+}
+
+.conta-admin-titulo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  color: #333;
+
+  ion-icon {
+    font-size: 1.05rem;
+    color: #3880ff;
+  }
+}
+
+.conta-admin-linha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+
+  span {
+    font-size: 0.88rem;
+    color: #444;
+  }
+
+  ion-button {
+    flex-shrink: 0;
+    margin: 0;
+  }
+}
+
+.conta-admin ion-note {
+  font-size: 0.8rem;
+}
+
 /* Menu de contas do app no campo Nome do modal Novo/Editar participante. */
 .sugestoes {
   margin: -4px 0 10px;
