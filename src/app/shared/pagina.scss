@@ -1,6 +1,7 @@
 ion-content {
-  /* 104px cobrem a barra de abas; + o player quando estiver aberto. */
-  --padding-bottom: calc(104px + var(--app-player-altura, 0px));
+  /* 62px da barra de abas + a navegação do aparelho + folga; e o player
+     quando estiver aberto. */
+  --padding-bottom: calc(104px + var(--app-safe-bottom, 0px) + var(--app-player-altura, 0px));
 }
 
 .versiculo-card {
@@ -156,7 +157,7 @@ ion-thumbnail {
   display: flex;
   gap: 8px;
   padding: 12px 16px;
-  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  padding-bottom: calc(12px + var(--app-safe-bottom, 0px));
 
   ion-button {
     flex: 1;

@@ -107,14 +107,14 @@
 .versiculo-selecionado { position: relative; z-index: 1; padding-inline: 12px; border-radius: 2px; background: #1b191c !important; color: #f8f6f8; }
 .versiculo-selecionado strong { color: inherit; }
 /* As setas ficam acima da navegação do aparelho e não recebem o flash azul do toque. */
-.navegacao-lateral { position: fixed; z-index: 15; inset: auto 8px calc(106px + env(safe-area-inset-bottom)); display: flex; justify-content: space-between; pointer-events: none; }
+.navegacao-lateral { position: fixed; z-index: 15; inset: auto 8px calc(106px + var(--app-safe-bottom, 0px)); display: flex; justify-content: space-between; pointer-events: none; }
 .seta-pagina { width: 56px; height: 56px; --border-radius: 50%; --background: var(--ion-background-color, #fff); --background-activated: transparent; --background-focused: transparent; --background-hover: transparent; --background-activated-opacity: 0; --color: var(--ion-text-color, #111); --color-activated: var(--ion-text-color, #111); --box-shadow: 0 3px 14px #0002; --ripple-color: transparent; pointer-events: auto; -webkit-tap-highlight-color: transparent; user-select: none; }
 .seta-pagina ion-icon { font-size: 2.1rem; }
 .seta-pagina[disabled] { opacity: .3; }
 
 /* O painel inferior abre ao selecionar um versículo; a paleta e as ações editam esse trecho. */
 .painel-versiculo-fundo { position: fixed; z-index: 30; inset: 0; background: #0002; }
-.painel-versiculo { position: fixed; z-index: 31; right: 0; bottom: calc(58px + env(safe-area-inset-bottom)); left: 0; padding: 12px 16px 14px; border: 1px solid var(--ion-color-step-150, #ddd); border-bottom: 0; border-radius: 22px 22px 0 0; background: var(--ion-background-color, #fff); box-shadow: 0 -8px 26px #0002; }
+.painel-versiculo { position: fixed; z-index: 31; right: 0; bottom: calc(58px + var(--app-safe-bottom, 0px)); left: 0; padding: 12px 16px 14px; border: 1px solid var(--ion-color-step-150, #ddd); border-bottom: 0; border-radius: 22px 22px 0 0; background: var(--ion-background-color, #fff); box-shadow: 0 -8px 26px #0002; }
 .alca-painel { width: 36px; height: 5px; margin: 0 auto 12px; border-radius: 8px; background: var(--ion-color-step-300, #ccc); }
 .acoes-versiculo { display: flex; justify-content: space-around; padding: 10px 0 16px; }
 .acoes-versiculo ion-button { width: 48px; height: 48px; --color: var(--ion-text-color, #171717); }

@@ -1,5 +1,16 @@
 ion-app {
-  --app-rodape-altura: 62px;
+  /*
+   * Inset da área de navegação/status do Android. Duas fontes possíveis:
+   * - env(safe-area-inset-*): suporte nativo do WebView 140+;
+   * - --safe-area-inset-*: variável que o plugin SystemBars do Capacitor
+   *   injeta via JavaScript.
+   * O maior valor cobre os dois casos — assim a barra de abas nunca fica
+   * escondida atrás dos botões de navegação do celular.
+   */
+  --app-safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px));
+  --app-safe-top: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px));
+  /* 62px de conteúdo + a área de navegação do aparelho. */
+  --app-rodape-altura: calc(62px + var(--app-safe-bottom));
   /* Espaço extra reservado no fim do conteúdo enquanto o player está aberto. */
   --app-player-altura: 0px;
   color: #000;
@@ -18,7 +29,7 @@ ion-menu {
 .botao-menu {
   position: fixed;
   z-index: 25;
-  top: calc(env(safe-area-inset-top) + 4px);
+  top: calc(var(--app-safe-top) + 4px);
   left: 4px;
   width: 44px;
   height: 44px;
@@ -32,7 +43,7 @@ ion-menu {
 .botao-perfil {
   position: fixed;
   z-index: 25;
-  top: calc(env(safe-area-inset-top) + 4px);
+  top: calc(var(--app-safe-top) + 4px);
   right: 4px;
   display: grid;
   place-items: center;
@@ -142,7 +153,9 @@ ion-menu ion-item.selecionado {
   justify-content: space-around;
   align-items: stretch;
   height: var(--app-rodape-altura);
-  padding-bottom: env(safe-area-inset-bottom);
+  /* A área de navegação do celular é PADDING da barra: os 62px de ícone +
+     rótulo continuam intactos e ela cresce para não encostar na borda. */
+  padding-bottom: var(--app-safe-bottom);
   background: #fff;
   border-top: 1px solid #e0e0e0;
 
@@ -177,8 +190,6 @@ ion-menu ion-item.selecionado {
   }
 }
 
-ion-app { --app-rodape-altura: 62px; }
-
 /* Player fixo encostado acima da barra de abas (menu deitado). */
 ion-footer {
   position: fixed;
@@ -191,6 +202,6 @@ ion-footer {
 /* Com o player visible, o conteúdo precisa de espaço extra para não ficar
    escondido atrás dele. */
 ion-app.com-player ion-content {
-  --padding-bottom: calc(104px + var(--app-player-altura));
+  --padding-bottom: calc(104px + var(--app-safe-bottom) + var(--app-player-altura));
 }
 /* Estilos de navegação e do player persistente que acompanha todas as telas. */

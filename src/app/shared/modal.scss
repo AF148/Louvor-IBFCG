@@ -148,7 +148,7 @@ video.video {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: calc(env(safe-area-inset-top) + 18px) 18px 10px;
+  padding: calc(var(--app-safe-top, 0px) + 18px) 18px 10px;
 
   h1 {
     margin: 0;
@@ -463,7 +463,7 @@ video.video {
 .painel-flutuante {
   position: fixed;
   left: 50%;
-  bottom: calc(76px + env(safe-area-inset-bottom));
+  bottom: calc(76px + var(--app-safe-bottom, 0px));
   transform: translateX(-50%);
   z-index: 30;
   width: max-content;
@@ -548,7 +548,7 @@ video.video {
 .barra-ferramentas {
   position: fixed;
   left: 50%;
-  bottom: calc(12px + env(safe-area-inset-bottom));
+  bottom: calc(12px + var(--app-safe-bottom, 0px));
   transform: translateX(-50%);
   z-index: 29;
   display: flex;
