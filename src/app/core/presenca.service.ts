@@ -55,6 +55,17 @@ export class PresencaService implements OnDestroy {
     () => [...this.presencas().values()].filter((p) => this.estaFresca(p)).length,
   );
 
+  /**
+   * Contas cadastradas no app (`usuarios/{uid}`), por nome — é de onde sai o
+   * menu de sugestões ao digitar o nome em Participantes. Documento sem nome
+   * é ignorado (perfil incompleto não deve quebrar a lista).
+   */
+  readonly perfis = computed(() =>
+    [...this.perfisPorEmail().values()]
+      .filter((u) => !!(u.nome ?? '').trim())
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
+  );
+
   private removers: Array<() => void> = [];
   private iniciado = false;
   private heartbeat?: ReturnType<typeof setInterval>;

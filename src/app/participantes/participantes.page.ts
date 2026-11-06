@@ -13,11 +13,12 @@ import {
   peopleOutline, personAddOutline, cafeOutline, callOutline,
   mailOutline, musicalNotesOutline, personOutline,
   radioButtonOn, radioButtonOff,
+  appsOutline, videocamOutline, volumeHighOutline, ellipsisHorizontalOutline,
 } from 'ionicons/icons';
 import { StoreService } from '../core/store.service';
 import { AuthService } from '../core/auth.service';
 import { PresencaService } from '../core/presenca.service';
-import type { Participante, Papel } from '../core/models';
+import type { Participante, Papel, Usuario } from '../core/models';
 
 const PAPEIS: { value: Papel; label: string; icone: string }[] = [
   { value: 'instrumentista', label: 'Instrumentista', icone: 'musical-notes-outline' },
@@ -52,7 +53,7 @@ const FORM_VAZIO: FormParticipante = {
   selector: 'app-participantes',
   standalone: true,
   templateUrl: './participantes.page.html',
-  styleUrls: ['../shared/pagina.scss', '../shared/modal.scss'],
+  styleUrls: ['../shared/pagina.scss', '../shared/modal.scss', './participantes.page.scss'],
   imports: [
     FormsModule,
     IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton,
@@ -78,6 +79,33 @@ export class ParticipantesPage implements OnInit, AfterViewInit {
   readonly participanteExcluir = signal<Participante | null>(null);
   readonly erroExclusao = signal<string | null>(null);
   readonly filtroPapel = signal<Papel | 'todos'>('todos');
+
+  /** Menu de contas do app: aberto ao focar/digitar o campo Nome do modal. */
+  readonly sugestoesAbertas = signal(false);
+
+  /**
+   * Contas cadastradas no app que combinam com o que foi digitado no Nome.
+   * Pula e-mails já vinculados a outros participantes (evita duplicar).
+   */
+  readonly sugestoes = computed(() => {
+    const texto = this.rascunho().nome.trim().toLowerCase();
+    const emEdicao = this.emEdicao();
+    const emailsUsados = new Set(
+      this.store.participantes()
+        .filter((p) => !emEdicao || p.id !== emEdicao.id)
+        .map((p) => (p.email ?? '').trim().toLowerCase())
+        .filter(Boolean),
+    );
+    return this.presenca.perfis()
+      .filter((u) => {
+        const email = (u.email ?? '').trim().toLowerCase();
+        if (email && emailsUsados.has(email)) return false;
+        if (!texto) return true;
+        return u.nome.toLowerCase().includes(texto)
+          || email.includes(texto);
+      })
+      .slice(0, 6);
+  });
 
   /** Barra horizontal dos filtros (arrastável). */
   @ViewChild('barraFiltros') barraFiltros?: ElementRef<HTMLDivElement>;
@@ -115,6 +143,7 @@ export class ParticipantesPage implements OnInit, AfterViewInit {
       peopleOutline, personAddOutline, cafeOutline, callOutline,
       mailOutline, musicalNotesOutline, personOutline,
       radioButtonOn, radioButtonOff,
+      appsOutline, videocamOutline, volumeHighOutline, ellipsisHorizontalOutline,
     });
   }
 
@@ -200,6 +229,7 @@ export class ParticipantesPage implements OnInit, AfterViewInit {
     this.emEdicao.set(null);
     this.rascunho.set({ ...FORM_VAZIO });
     this.aviso.set(null);
+    this.sugestoesAbertas.set(false);
     this.modalAberto.set(true);
   }
 
@@ -216,11 +246,46 @@ export class ParticipantesPage implements OnInit, AfterViewInit {
       observacoes: p.observacoes ?? '',
     });
     this.aviso.set(null);
+    this.sugestoesAbertas.set(false);
     this.modalAberto.set(true);
   }
 
   fechar(): void {
     this.modalAberto.set(false);
+    this.sugestoesAbertas.set(false);
+  }
+
+  /** Abre o menu de contas do app ao tocar/focar no campo Nome. */
+  focarNome(): void {
+    this.sugestoesAbertas.set(true);
+  }
+
+  /** Saiu do campo: esconde o menu depois de um instante (dá tempo de tocar). */
+  perderFocoNome(): void {
+    window.setTimeout(() => this.sugestoesAbertas.set(false), 200);
+  }
+
+  /**
+   * Enter com o menu aberto escolhe a primeira conta; sem menu, o Enter
+   * continua enviando o formulário como antes.
+   */
+  aoPressionarEnterNome(event: Event): void {
+    if (this.sugestoesAbertas() && this.sugestoes().length) {
+      event.preventDefault();
+      this.escolherUsuario(this.sugestoes()[0]);
+    }
+  }
+
+  /** Preenche Nome, E-mail e Posição da reserva a partir da conta escolhida. */
+  escolherUsuario(u: Usuario): void {
+    const r = this.rascunho();
+    this.rascunho.set({
+      ...r,
+      nome: u.nome,
+      email: (u.email ?? '').trim() || r.email,
+      papel: u.papel ?? r.papel,
+    });
+    this.sugestoesAbertas.set(false);
   }
 
   async salvar(): Promise<void> {

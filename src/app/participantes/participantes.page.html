@@ -159,8 +159,42 @@
       <form #form="ngForm" (ngSubmit)="salvar()">
         <ion-item>
           <ion-label position="stacked">Nome</ion-label>
-          <ion-input [(ngModel)]="rascunho().nome" name="nome" required placeholder="Nome completo"></ion-input>
+          <ion-input
+            [(ngModel)]="rascunho().nome"
+            name="nome"
+            required
+            placeholder="Nome completo ou escolha uma conta"
+            autocomplete="off"
+            (ionFocus)="focarNome()"
+            (ionBlur)="perderFocoNome()"
+            (keydown.enter)="aoPressionarEnterNome($event)"
+          ></ion-input>
         </ion-item>
+
+        <!-- Contas cadastradas no app: escolher preenche nome, e-mail e posição. -->
+        @if (sugestoesAbertas() && sugestoes().length) {
+          <ul class="sugestoes" aria-label="Contas do app">
+            @for (u of sugestoes(); track u.uid) {
+              <li>
+                <button type="button" class="sugestao" (click)="escolherUsuario(u)">
+                  @if (u.fotoUrl) {
+                    <img class="sugestao-foto" [src]="u.fotoUrl" alt="">
+                  } @else {
+                    <ion-icon class="sugestao-icone" name="person-circle-outline"></ion-icon>
+                  }
+                  <span class="sugestao-texto">
+                    <strong>{{ u.nome }}</strong>
+                    <small>
+                      {{ u.email }}
+                      @if (u.papel) { · {{ labelPapel(u.papel) }} }
+                    </small>
+                  </span>
+                  <ion-icon class="sugestao-add" name="add-circle-outline" aria-hidden="true"></ion-icon>
+                </button>
+              </li>
+            }
+          </ul>
+        }
 
         <ion-item>
           <ion-label position="stacked">Posição na equipe (reserva)</ion-label>

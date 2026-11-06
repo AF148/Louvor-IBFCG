@@ -1,0 +1,71 @@
+/* Menu de contas do app no campo Nome do modal Novo/Editar participante. */
+.sugestoes {
+  margin: -4px 0 10px;
+  padding: 4px;
+  list-style: none;
+  overflow-y: auto;
+  max-height: 236px;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+
+.sugestao {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #000;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: #eef5ff;
+  }
+}
+
+.sugestao-foto {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.sugestao-icone {
+  flex-shrink: 0;
+  font-size: 34px;
+  color: #17435b;
+}
+
+.sugestao-texto {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+
+  strong {
+    font-size: 0.92rem;
+  }
+
+  small {
+    color: #666;
+    font-size: 0.75rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.sugestao-add {
+  flex-shrink: 0;
+  font-size: 1.3rem;
+  color: #3880ff;
+}
