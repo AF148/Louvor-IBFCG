@@ -32,8 +32,11 @@ interface FormCulto {
   titulo: string;
   /** Opção escolhida no menu de títulos (ou 'outro' para digitar). */
   tituloOpcao: string;
-  /** ids dos participantes escalados no vocal deste culto. */
-  cantores: string[];
+  /**
+   * ids dos cantores por posição de vocal (Vocal 1, Vocal 2, Vocal 3…),
+   * espelhando as colunas VOCAL 01/02/03 da planilha.
+   */
+  vocais: string[];
   ministrante: string;
   /** ids da equipe de transmissão/mídia (papel 'operador') neste culto. */
   midia: string[];
@@ -62,7 +65,7 @@ const FORM_VAZIO: FormCulto = {
   hora: '19:00',
   titulo: '',
   tituloOpcao: 'outro',
-  cantores: [],
+  vocais: [],
   ministrante: '',
   midia: [],
   som: [],
@@ -104,6 +107,8 @@ export class EscalaPage implements OnInit {
   private arrastoPlanilha: { elemento: HTMLElement; pointerId: number; x: number; y: number; left: number; top: number } | null = null;
 
   readonly modalAberto = signal(false);
+  /** Segunda janela: escolhe o cantor de cada vocal (Vocal 1, 2 e 3). */
+  readonly modalVocais = signal(false);
   readonly emEdicao = signal<Culto | null>(null);
   readonly rascunho = signal<FormCulto>({ ...FORM_VAZIO });
   readonly cultoExcluir = signal<Culto | null>(null);
@@ -323,7 +328,8 @@ export class EscalaPage implements OnInit {
       hora: c.hora,
       titulo: c.titulo,
       tituloOpcao: opcao ?? 'outro',
-      cantores: (c.equipe ?? [])
+      // Ordem dos cantores = posição do vocal (Vocal 1, Vocal 2, …).
+      vocais: (c.equipe ?? [])
         .filter((e) => e.papel === 'cantor')
         .map((e) => e.participanteId),
       ministrante: (c.equipe ?? []).find((e) => e.papel === 'ministrante')?.participanteId ?? '',
@@ -359,6 +365,59 @@ export class EscalaPage implements OnInit {
     return ministrantes.length ? ministrantes : this.participantes();
   });
 
+  /** Sempre 3 vagas (como VOCAL 01/02/03), ou mais quando há cantores extras. */
+  readonly slotsVocais = computed(() =>
+    Array.from({ length: Math.max(3, this.rascunho().vocais.length) }, (_, i) => i));
+
+  /** Nome do participante escalado numa posição de vocal (ou '—' se vazio). */
+  private nomeEscalado(id: string | undefined): string {
+    if (!id) return '—';
+    return this.store.participantes().find((p) => p.id === id)?.nome ?? '—';
+  }
+
+  /** Resumo mostrado no formulário: "Vocal 1: Ana · Vocal 2: — · Vocal 3: Pedro". */
+  readonly resumoVocais = computed(() => {
+    const vocais = this.rascunho().vocais;
+    if (!vocais.some((id) => id)) return 'Toque para escolher';
+    return Array.from({ length: this.slotsVocais().length }, (_, i) =>
+      `Vocal ${i + 1}: ${this.nomeEscalado(vocais[i])}`).join(' · ');
+  });
+
+  abrirVocais(): void {
+    this.modalVocais.set(true);
+  }
+
+  fecharVocais(): void {
+    this.modalVocais.set(false);
+  }
+
+  /** Escolhe (ou limpa, com '') o cantor da posição `indice`. */
+  definirVocal(indice: number, id: string): void {
+    const vocais = [...this.rascunho().vocais];
+    while (vocais.length <= indice) vocais.push('');
+    // Uma pessoa ocupa um vocal só: escolhida em outra posição, sai da antiga.
+    if (id) {
+      for (let i = 0; i < vocais.length; i++) {
+        if (i !== indice && vocais[i] === id) vocais[i] = '';
+      }
+    }
+    vocais[indice] = id;
+    this.rascunho.set({ ...this.rascunho(), vocais });
+  }
+
+  /** Adiciona uma posição extra (Vocal 4, 5, …) além das três da planilha. */
+  adicionarVocal(): void {
+    this.rascunho.set({ ...this.rascunho(), vocais: [...this.rascunho().vocais, ''] });
+  }
+
+  /** Remove uma posição extra; as três primeiras ficam sempre visíveis. */
+  removerVocal(indice: number): void {
+    if (indice < 3) return;
+    const vocais = this.rascunho().vocais.slice();
+    vocais.splice(indice, 1);
+    this.rascunho.set({ ...this.rascunho(), vocais });
+  }
+
   fechar(): void {
     this.modalAberto.set(false);
   }
@@ -370,10 +429,12 @@ export class EscalaPage implements OnInit {
     const existente = this.emEdicao();
 
     // Atualiza as seleções do formulário e preserva os demais papéis escalados.
+    // As posições vazias do editor de vocal são puladas: a ordem salva é a
+    // ordem dos cantores, igual às colunas VOCAL 01/02/03 da planilha.
     const papeisEditados: Papel[] = ['cantor', 'ministrante', 'operador', 'som'];
     const equipe = (existente?.equipe ?? []).filter((e) => !papeisEditados.includes(e.papel));
     for (const [papel, ids] of [
-      ['cantor', dados.cantores], ['operador', dados.midia], ['som', dados.som],
+      ['cantor', dados.vocais.filter((id) => id.trim())], ['operador', dados.midia], ['som', dados.som],
     ] as [Papel, string[]][]) {
       for (const id of ids) equipe.push({ participanteId: id, papel });
     }

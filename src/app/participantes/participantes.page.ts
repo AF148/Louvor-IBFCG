@@ -5,7 +5,7 @@ import {
   IonIcon, IonList, IonItem, IonLabel, IonInput,
   IonItemOption, IonItemSliding, IonItemOptions, IonModal, IonBadge,
   IonNote, IonSelect, IonSelectOption, IonAlert, IonCard, IonCardHeader,
-  IonCardTitle, IonCardContent, IonAvatar, IonChip,
+  IonCardTitle, IonCardContent, IonAvatar, IonChip, IonTextarea, IonCheckbox,
 } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
@@ -61,7 +61,7 @@ const FORM_VAZIO: FormParticipante = {
     IonIcon, IonList, IonItem, IonLabel, IonInput,
     IonItemOption, IonItemSliding, IonItemOptions, IonModal, IonBadge,
     IonNote, IonSelect, IonSelectOption, IonAlert, IonCard, IonCardHeader,
-    IonCardTitle, IonCardContent, IonAvatar, IonChip,
+    IonCardTitle, IonCardContent, IonAvatar, IonChip, IonTextarea, IonCheckbox,
   ],
 })
 /** Mantém a lista de participantes e as funções usadas para montar as escalas. */
