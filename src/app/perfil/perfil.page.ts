@@ -17,6 +17,8 @@ import {
 } from 'ionicons/icons';
 import type { Papel, Usuario } from '../core/models';
 import { AuthService } from '../core/auth.service';
+import { StoreService } from '../core/store.service';
+import { PlanilhaService } from '../core/planilha.service';
 import { BANNERS_PERFIL, comprimirImagem, fundoCapa } from '../core/imagem.util';
 
 /** Papéis oferecidos no seletor do modal de edição. */
@@ -45,6 +47,8 @@ const PAPEIS: { value: Papel; label: string }[] = [
 export class PerfilPage {
   readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly store = inject(StoreService);
+  private readonly planilha = inject(PlanilhaService);
 
   @ViewChild('capaInput') private capaInput?: ElementRef<HTMLInputElement>;
 
@@ -92,6 +96,9 @@ export class PerfilPage {
     this.carregandoPerfil.set(true);
     try {
       this.perfil.set(await this.auth.buscarPerfil(uid));
+      // Entrou no app com o perfil já preenchido: garante o vínculo
+      // conta ↔ equipe sem esperar o usuário abrir a edição.
+      void this.vincularContaNaEquipe();
     } catch {
       this.perfil.set(null);
     } finally {
@@ -273,11 +280,47 @@ export class PerfilPage {
       });
       const uid = this.auth.usuario()?.uid;
       if (uid) await this.carregarPerfil(uid);
+      await this.vincularContaNaEquipe();
       this.modalEdicao.set(false);
     } catch (err) {
       this.aviso.set(err instanceof Error ? err.message : 'Não foi possível salvar o perfil.');
     } finally {
       this.salvando.set(false);
+    }
+  }
+
+  /** Evita duas chamadas simultâneas criar o mesmo participante duas vezes. */
+  private vinculoEmAndamento: Promise<void> | null = null;
+
+  /**
+   * Liga a conta ao nome da equipe: grava `participantes` com o **próprio
+   * e-mail** desta conta (nome e papel do Perfil). É o que faz a pessoa
+   * aparecer na escala do culto com o nome da planilha — e, sendo admin,
+   * a própria escala é ressincronizada na hora.
+   */
+  private vincularContaNaEquipe(): Promise<void> {
+    if (!this.vinculoEmAndamento) {
+      this.vinculoEmAndamento = this.executarVinculo().finally(() => {
+        this.vinculoEmAndamento = null;
+      });
+    }
+    return this.vinculoEmAndamento;
+  }
+
+  private async executarVinculo(): Promise<void> {
+    const user = this.auth.usuario();
+    const email = user?.email;
+    const nome = (this.perfil()?.nome ?? this.nome()).trim();
+    const papel = (this.perfil()?.papel ?? this.papel()) || undefined;
+    if (!email || !nome) return;
+    try {
+      const mudou = await this.store.vincularContaAoTime({ nome, email, papel });
+      if (mudou && this.auth.ehAdmin()) {
+        // Quem vinculou é admin: a escala já reflete o nome novo agora.
+        await this.planilha.ressincronizarSalva();
+      }
+    } catch {
+      // Vínculo é um extra: o perfil já foi salvo; tenta de novo na próxima.
     }
   }
 

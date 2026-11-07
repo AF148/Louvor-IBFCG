@@ -277,11 +277,25 @@ export function interpretarMatriz(
 
   const porNome = new Map<string, Participante>();
   for (const p of participantes) {
-    const chave = normalizar(p.nome);
+    const chave = chaveNome(p.nome);
     // Primeiro participante ativo vence em empate de nome.
     if (!porNome.has(chave) || (!porNome.get(chave)!.ativo && p.ativo)) {
       porNome.set(chave, p);
     }
+  }
+
+  /**
+   * Fallback por primeiro nome: a planilha escreve "PR.ALEXANDRE" e o
+   * perfil cadastrou "Alexandre". Só casa quando o primeiro nome é
+   * **único** na equipe (dois "Alexandre" viram `null` e ficam para o
+   * cadastro manual, evitando atribuir a pessoa errada).
+   */
+  const porPrimeiroNome = new Map<string, Participante | null>();
+  for (const p of participantes) {
+    const primeiro = chaveNome(p.nome).split(' ')[0];
+    if (!primeiro) continue;
+    if (!porPrimeiroNome.has(primeiro)) porPrimeiroNome.set(primeiro, p);
+    else porPrimeiroNome.set(primeiro, null); // ambíguo: não casa sozinho.
   }
 
   const colData = colunas.find((c) => c.tipo === 'data')!;
@@ -351,7 +365,7 @@ export function interpretarMatriz(
     for (const col of colunas) {
       if (col.tipo !== 'pessoa') continue;
       for (const nome of separarNomes(celula(col.idx))) {
-        const achado = porNome.get(normalizar(nome));
+        const achado = acharParticipante(nome, porNome, porPrimeiroNome);
         if (achado) {
           if (!equipe.some((e) => e.participanteId === achado.id && e.papel === col.papel)) {
             equipe.push({ participanteId: achado.id, papel: col.papel });
@@ -386,4 +400,33 @@ export function interpretarMatriz(
     ignoradas,
     colunasIgnoradas,
   };
+}
+
+/**
+ * Chave de comparação de nome: sem acento/caixa **e sem pontuação**, para
+ * "PR.ALEXANDRE" e "PR. ALEXANDRE" (ou "Pr Alexandre") caírem na mesma
+ * entrada do índice.
+ */
+function chaveNome(texto: string): string {
+  return normalizar(texto).replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+/**
+ * Acha o participante de um nome da planilha: primeiro o nome completo,
+ * depois palavra a palavra (da última para a primeira, para testar
+ * "ALEXANDRE" antes de "PR") contra o primeiro nome único da equipe.
+ */
+function acharParticipante(
+  nome: string,
+  porNome: Map<string, Participante>,
+  porPrimeiroNome: Map<string, Participante | null>,
+): Participante | undefined {
+  const completo = porNome.get(chaveNome(nome));
+  if (completo) return completo;
+  const palavras = chaveNome(nome).split(' ').filter((p) => p.length >= 2);
+  for (let i = palavras.length - 1; i >= 0; i--) {
+    const achado = porPrimeiroNome.get(palavras[i]);
+    if (achado) return achado;
+  }
+  return undefined;
 }

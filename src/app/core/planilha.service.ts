@@ -1,8 +1,9 @@
 import { Injectable, inject } from '@angular/core';
-import type { Culto, Participante } from './models';
+import type { Culto, Participante, PlanilhaEscala } from './models';
 import { StoreService } from './store.service';
 import {
   interpretarMatriz,
+  normalizar,
   type PreviasCulto,
   type ResultadoPlanilha,
 } from './planilha.util';
@@ -15,19 +16,36 @@ import {
  * leitura do arquivo ao store do Firebase.
  *
  * A equipe é casada com os participantes cadastrados sem diferenciar
- * acento/caixa; os nomes que não casarem são listados no resumo da prévia
- * para cadastro manual.
+ * acento/caixa (com fallback pelo primeiro nome único); os nomes que não
+ * casarem são listados no resumo da prévia para cadastro manual.
  */
 
 export type { PreviasCulto, ResultadoPlanilha };
+
+/** Documento onde a planilha de escala fica guardada no app. */
+export const PLANILHA_ESCALA_ID = 'escala-louvor-atual';
+
+/** Resultado de uma ressincronização: vale a pena avisar quando a equipe mudou. */
+export interface ResultadoRessincronizacao {
+  /** Cultos criados/atualizados na ressincronização (0 = nada mudou). */
+  atualizados: number;
+  /** Algum nome da planilha passou a casar com um participante. */
+  equipeMudou: boolean;
+  /** Prévia reinterpretação, pronta para substituir a prévia da página. */
+  previa: ResultadoPlanilha;
+}
 
 @Injectable({ providedIn: 'root' })
 /** Importa planilhas de escala, transforma as linhas e salva os cultos no armazenamento. */
 export class PlanilhaService {
   private readonly store = inject(StoreService);
 
-  interpretarTabela(cabecalhos: string[], linhas: string[][]): ResultadoPlanilha {
-    return interpretarMatriz([cabecalhos, ...linhas], this.store.participantes());
+  interpretarTabela(
+    cabecalhos: string[],
+    linhas: string[][],
+    participantes: Participante[] = this.store.participantes(),
+  ): ResultadoPlanilha {
+    return interpretarMatriz([cabecalhos, ...linhas], participantes);
   }
 
   /**
@@ -72,8 +90,11 @@ export class PlanilhaService {
     /** A planilha define esse campo? Sem a coluna, o valor manual é mantido. */
     const temColuna = (padrao: RegExp) => cabecalhosNorm.some((h) => padrao.test(h));
 
+    // Consulta direta (não o sinal): com a escuta ainda vazia o upsert
+    // duplicaria cultos que já existem no servidor.
+    const cultosExistentes = await this.store.consultar<Culto>('cultos');
     const existentes = new Map<string, Culto>(
-      this.store.cultos().map((c) => [`${c.data}|${c.hora}`, c] as const),
+      cultosExistentes.map((c) => [`${c.data}|${c.hora}`, c] as const),
     );
     let salvos = 0;
     let atualizados = 0;
@@ -82,6 +103,9 @@ export class PlanilhaService {
       const existente = existentes.get(chave);
       if (existente) {
         const item = fundirComPlanilha(existente, culto, temColuna);
+        // Devolve para a prévia o que foi gravado (id do documento já
+        // existente + campos preservados), mantendo a tela em dia.
+        Object.assign(culto, item);
         await this.store.salvar('cultos', item);
         // Coluna existe mas a célula ficou vazia: apaga o valor antigo.
         if (temColuna(/local|igreja|templo/) && !item.local) {
@@ -100,6 +124,58 @@ export class PlanilhaService {
     }
     return { salvos, atualizados };
   }
+
+  /**
+   * Reinterpreta a planilha salva com os participantes de agora e regrava
+   * os cultos **só quando a equipe mudou** (ex.: alguém acabou de vincular
+   * a conta no Perfil e o nome dele passou a casar com a planilha). Assim o
+   * vínculo aparece na escala sem desfazer edições manuais feitas depois
+   * da importação.
+   */
+  async ressincronizar(salva: PlanilhaEscala): Promise<ResultadoRessincronizacao> {
+    await this.store.iniciar();
+    // Consulta direta: o sinal pode ainda estar vazio (escuta recém-ligada)
+    // e interpretaria "tudo sem cadastro", apagando equipe existente.
+    const participantes = await this.store.consultar<Participante>('participantes');
+    const previa = interpretarMatriz(
+      [salva.cabecalhos, ...salva.dados.map((linha) => linha.valores)],
+      participantes,
+    );
+    const antes = assinaturaSemCadastro(salva.semParticipantes.map((item) => item.nomes));
+    const depois = assinaturaSemCadastro(previa.linhas.map((item) => item.semParticipante));
+    if (antes === depois) {
+      return { atualizados: 0, equipeMudou: false, previa };
+    }
+    const { salvos, atualizados } = await this.importar(previa.linhas, salva.cabecalhos);
+    // Guarda o resultado para a próxima abertura não reimportar à toa.
+    const atualizada: PlanilhaEscala = {
+      ...salva,
+      cultos: previa.linhas.map((item) => item.culto),
+      semParticipantes: previa.linhas.map((item) => ({ nomes: item.semParticipante })),
+      atualizadoEm: Date.now(),
+    };
+    await this.store.salvar('planilhas', atualizada);
+    return { atualizados: salvos + atualizados, equipeMudou: true, previa };
+  }
+
+  /** Busca a planilha guardada e ressincroniza; `null` se não houver/importada. */
+  async ressincronizarSalva(): Promise<ResultadoRessincronizacao | null> {
+    const salva = await this.store.buscar<PlanilhaEscala>('planilhas', PLANILHA_ESCALA_ID);
+    if (!salva?.importada) return null;
+    return this.ressincronizar(salva);
+  }
+}
+
+/**
+ * Conjunto normalizado dos nomes sem cadastro — serve para comparar
+ * "antes de vincular" com "depois" e decidir se vale regravar os cultos.
+ */
+function assinaturaSemCadastro(listas: string[][]): string {
+  const nomes = new Set<string>();
+  for (const lista of listas) {
+    for (const nome of lista) nomes.add(normalizar(nome));
+  }
+  return [...nomes].sort().join('|');
 }
 
 /** Cabeçalho em minúsculo e sem acento, para reconhecer as colunas. */

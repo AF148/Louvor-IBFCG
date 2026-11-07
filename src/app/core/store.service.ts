@@ -25,7 +25,7 @@ import {
 } from 'firebase/firestore';
 import { firestore, initFirebase } from './firebase';
 import { MidiaService } from './midia.service';
-import type { Culto, KitMusical, Louvor, MensagemVoz, Participante, PlanilhaEscala, Playlist } from './models';
+import type { Culto, KitMusical, Louvor, MensagemVoz, Papel, Participante, PlanilhaEscala, Playlist } from './models';
 
 /**
  * Aviso exibido quando não há sessão: sem conta logada o Firestore nega a
@@ -203,6 +203,68 @@ export class StoreService implements OnDestroy {
   /** Cultos de uma data específica, 'AAAA-MM-DD'. */
   cultosDoDia(data: string): Culto[] {
     return this.cultosSig().filter((c) => c.data === data);
+  }
+
+  /**
+   * Liga a conta logada ao nome da equipe: cria ou atualiza o
+   * `participantes` com o **próprio e-mail** (a regra do Firestore só
+   * deixa a pessoa mexer no documento dela). É o que faz o nome do Perfil
+   * aparecer na escala do culto, casado com o nome da planilha.
+   *
+   * Retorna `true` quando criou ou mudou algo — quem chama pode, então,
+   * ressincronizar a escala com a planilha.
+   */
+  async vincularContaAoTime(perfil: {
+    nome: string;
+    email?: string;
+    papel?: Papel;
+  }): Promise<boolean> {
+    await this.iniciar();
+    const email = (perfil.email ?? '').trim();
+    const nome = (perfil.nome ?? '').trim();
+    if (!email || !nome) return false;
+
+    // Primeiro olha o que já está em memória; sem achado, consulta o
+    // Firestore (a regra compara o e-mail em caixa-sensível, então a
+    // consulta usa o e-mail exatamente como o Firebase Auth guarda).
+    const emailNorm = email.toLowerCase();
+    let existente = this.participantesSig().find(
+      (p) => (p.email ?? '').trim().toLowerCase() === emailNorm,
+    );
+    if (!existente) {
+      const variantes = [...new Set([email, emailNorm])];
+      for (const variante of variantes) {
+        const achados = await this.consultar<Participante>(
+          'participantes',
+          where('email', '==', variante),
+        );
+        if (achados.length) {
+          existente = achados[0];
+          break;
+        }
+      }
+    }
+
+    if (existente) {
+      // Só toca em nome/papel (a regra permite exatamente esses campos).
+      const mudancas: Partial<Participante> = {};
+      if (existente.nome !== nome) mudancas.nome = nome;
+      if (perfil.papel && existente.papel !== perfil.papel) mudancas.papel = perfil.papel;
+      if (!Object.keys(mudancas).length) return false;
+      await this.atualizar<Participante>('participantes', existente.id, mudancas);
+      return true;
+    }
+
+    const novo: Participante = {
+      id: crypto.randomUUID(),
+      nome,
+      email,
+      papel: perfil.papel ?? 'outro',
+      ativo: true,
+      criadoEm: Date.now(),
+    };
+    await this.salvar('participantes', novo);
+    return true;
   }
 
   /** Próximo culto com base na data/hora local. */

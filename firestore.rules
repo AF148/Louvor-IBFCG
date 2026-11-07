@@ -75,6 +75,15 @@ service cloud.firestore {
     match /participantes/{id} {
       allow read: if autenticado();
       allow write: if admin();
+      // Auto-vínculo: a própria conta pode criar seu documento com o
+      // próprio e-mail e ajustar só nome/papel — é assim que a pessoa
+      // aparece na escala do culto com o nome da planilha.
+      allow create: if autenticado()
+        && request.resource.data.email is string
+        && request.resource.data.email == request.auth.token.email;
+      allow update: if autenticado()
+        && resource.data.email == request.auth.token.email
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['nome', 'papel']);
     }
 
     match /kits/{id} {

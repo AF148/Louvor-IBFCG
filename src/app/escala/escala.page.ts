@@ -22,7 +22,7 @@ import { AuthService } from '../core/auth.service';
 import { PresencaService } from '../core/presenca.service';
 import { AudioService, formatarDataExtenso, formatarData } from '../core/audio.service';
 import { hojeISO } from '../core/aniversario.service';
-import { PlanilhaService } from '../core/planilha.service';
+import { PlanilhaService, PLANILHA_ESCALA_ID } from '../core/planilha.service';
 import type { PreviasCulto, ResultadoPlanilha } from '../core/planilha.service';
 import type { Culto, ItemRota, Participante, Papel, PlanilhaEscala, StatusCulto } from '../core/models';
 
@@ -100,7 +100,7 @@ export class EscalaPage implements OnInit {
   private readonly planilha = inject(PlanilhaService);
   /** Libera importar/criar/editar/excluir cultos e planilhas (só administradores). */
   readonly podeEditar = computed(() => this.auth.ehAdmin());
-  private readonly planilhaSalvaId = 'escala-louvor-atual';
+  private readonly planilhaSalvaId = PLANILHA_ESCALA_ID;
   private arrastoPlanilha: { elemento: HTMLElement; pointerId: number; x: number; y: number; left: number; top: number } | null = null;
 
   readonly modalAberto = signal(false);
@@ -205,10 +205,11 @@ export class EscalaPage implements OnInit {
         colunasIgnoradas: salva.colunasIgnoradas,
       };
       this.previaPlanilha.set(previa);
+      if (!this.podeEditar()) return;
       // Planilha nunca importada (ou a escala ficou vazia): grava os cultos
       // agora — a aba Cultos e o Calendário passam a mostrar tudo.
       const escalaVazia = this.store.cultos().length === 0 && previa.linhas.length > 0;
-      if ((!salva.importada || escalaVazia) && this.podeEditar()) {
+      if (!salva.importada || escalaVazia) {
         const { salvos, atualizados } = await this.importarCultosDaPlanilha(previa);
         if (salvos || atualizados) {
           this.mostrarResultadoNaPagina(
@@ -216,6 +217,17 @@ export class EscalaPage implements OnInit {
             false,
           );
         }
+        return;
+      }
+      // Já importada: só regrava se algum nome da planilha passou a casar
+      // (conta recém-vinculada no Perfil) — sem tocar nas edições manuais.
+      const resync = await this.planilha.ressincronizar(salva);
+      if (resync.equipeMudou) {
+        this.previaPlanilha.set({ ...previa, linhas: resync.previa.linhas });
+        this.mostrarResultadoNaPagina(
+          `Escala atualizada com a equipe nova: ${resync.atualizados} culto(s) revisado(s).`,
+          false,
+        );
       }
     } catch {
       // A lista de cultos continua disponível quando a persistência não puder ser acessada.
