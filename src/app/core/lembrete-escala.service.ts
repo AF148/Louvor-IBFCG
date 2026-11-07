@@ -1,6 +1,7 @@
 import { Injectable, effect, inject } from '@angular/core';
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { AlertController } from '@ionic/angular';
 import { AuthService } from './auth.service';
 import { StoreService } from './store.service';
 import type { Culto, Papel, Participante } from './models';
@@ -16,6 +17,27 @@ const MARCA = { lembrete: 'escala' };
 
 /** Título exibido na barra de notificações. */
 const TITULO = 'Lembrete de escala 🎶';
+
+/** Guarda quando o usuário já tocou em "Permitir" no aviso do app. */
+const CHAVE_PEDIDO = 'lembrete-permissao-pedida';
+
+/** Já perguntou (e o sistema negou) em alguma vez? */
+function jaPerguntou(): boolean {
+  try {
+    return localStorage.getItem(CHAVE_PEDIDO) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/** Marca que o pedido foi feito (não insiste a cada abertura). */
+function marcarQuePerguntou(): void {
+  try {
+    localStorage.setItem(CHAVE_PEDIDO, '1');
+  } catch {
+    // Sem armazenamento local: na próxima abertura o aviso aparece de novo.
+  }
+}
 
 /**
  * Lembrete de escala por notificação local.
@@ -34,6 +56,8 @@ const TITULO = 'Lembrete de escala 🎶';
 export class LembreteEscalaService {
   private readonly store = inject(StoreService);
   private readonly auth = inject(AuthService);
+  /** Aviso interno que explica o pedido de notificação antes do sistema. */
+  private readonly alert = inject(AlertController);
 
   /** Fila única: cancelar e reagendar sem duas execuções sobrepostas. */
   private fila: Promise<void> = Promise.resolve();
@@ -93,24 +117,64 @@ export class LembreteEscalaService {
         id: idDe(culto.id),
         title: TITULO,
         body: textoLembrete(culto, funcoesDe(culto, meu.id)),
-        schedule: { at: quando },
+        // Canal de alta importância: banner no topo, como o WhatsApp.
+        channelId: 'lembretes',
+        // Dispara mesmo com o aparelho em descanso (app fechado).
+        schedule: { at: quando, allowWhileIdle: true },
+        autoCancel: true,
         extra: MARCA,
       })),
     });
     console.info(`[lembrete] ${lembretes.length} aviso(s) de escala agendado(s).`);
   }
 
-  /** Permissão de notificação (Android 13+/iOS): pede uma vez por sessão. */
+  /**
+   * Permissão de notificação (Android 13+/iOS/navegador): pede uma vez —
+   * e antes do pedido do sistema mostramos um aviso nosso dizendo que a
+   * notificação é do próprio aplicativo e o que ela vai avisar.
+   *
+   * Depois de respondido (permitido ou não) o aviso não aparece mais, igual
+   * à permissão de microfone: `granted` já retorna na primeira linha.
+   */
   private async permissao(): Promise<boolean> {
     try {
       const atual = await LocalNotifications.checkPermissions();
       if (atual.display === 'granted') return true;
       if (this.pediuPermissao) return false;
       this.pediuPermissao = true;
+      if (jaPerguntou()) return false;
+      const permitiu = await this.pedirAcessoNoApp();
+      // Respondeu o aviso: não insiste mais em nenhuma abertura.
+      marcarQuePerguntou();
+      if (!permitiu) return false;
       const pedido = await LocalNotifications.requestPermissions();
       return pedido.display === 'granted';
     } catch {
       return false;
+    }
+  }
+
+  /** Janela "Permitir acesso a notificação do aplicativo". */
+  private async pedirAcessoNoApp(): Promise<boolean> {
+    try {
+      const aviso = await this.alert.create({
+        header: 'Permitir acesso a notificação do aplicativo',
+        message:
+          'O Louvor-IBFCG quer te avisar da sua escala. A notificação é do próprio ' +
+          'aplicativo: 2 dias antes do culto, às 9:00, com a data e a sua função.\n\n' +
+          'Para receber, toque em Permitir e confirme na tela do aparelho. Se já ' +
+          'tiver bloqueado, ative em Configurações do aparelho → Apps → Louvor-IBFCG → Notificações.',
+        buttons: [
+          { text: 'Agora não', role: 'cancel' },
+          { text: 'Permitir', role: 'confirm' },
+        ],
+      });
+      await aviso.present();
+      const { role } = await aviso.onDidDismiss();
+      return role === 'confirm';
+    } catch {
+      // Sem interface para o aviso: segue direto para o pedido do sistema.
+      return true;
     }
   }
 
