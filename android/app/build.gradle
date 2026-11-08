@@ -1,5 +1,35 @@
 apply plugin: 'com.android.application'
 
+// ---------------------------------------------------------------------------
+// Assinatura de release — as credenciais ficam FORA do código-fonte.
+//
+// Ordem de leitura:
+//   1. variável de ambiente  (CI/CD, máquina nova)  -> LOUVOR_*
+//   2. android/keystore.properties  (uso local, está no .gitignore)
+//
+// Sem nenhuma das duas, ou sem o arquivo .keystore, o build CONTINUA e gera
+// um APK não assinado — bom para testar. Para distribuir é preciso assinar.
+// ---------------------------------------------------------------------------
+def propsAssinatura = new Properties()
+def arquivoProps = rootProject.file('keystore.properties')
+if (arquivoProps.exists()) {
+    arquivoProps.withInputStream { propsAssinatura.load(it) }
+}
+
+def valorDe = { String propriedade, String variavel ->
+    def valorEnv = System.getenv(variavel)
+    return (valorEnv != null && !valorEnv.trim().isEmpty())
+        ? valorEnv
+        : propsAssinatura.getProperty(propriedade)
+}
+
+def keystoreArquivo = valorDe('storeFile', 'LOUVOR_KEYSTORE_FILE') ?: 'louvor-ibfcg.keystore'
+def keystoreCaminho = rootProject.file(keystoreArquivo)
+def keystoreSenha   = valorDe('storePassword', 'LOUVOR_STORE_PASSWORD')
+def keystoreAlias   = valorDe('keyAlias', 'LOUVOR_KEY_ALIAS') ?: 'louvor-ibfcg'
+def keystoreKeyPass = valorDe('keyPassword', 'LOUVOR_KEY_PASSWORD')
+def assinarRelease  = keystoreCaminho.exists() && keystoreSenha != null && keystoreKeyPass != null
+
 android {
     namespace = "com.igreja.scale"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,10 +46,23 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (assinarRelease) {
+                storeFile keystoreCaminho
+                storePassword keystoreSenha
+                keyAlias keystoreAlias
+                keyPassword keystoreKeyPass
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (assinarRelease) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }

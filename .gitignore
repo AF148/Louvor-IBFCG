@@ -84,3 +84,13 @@ RELATORIO-DO-PROJETO.html
 # Chave de assinatura do app - NUNCA subir
 *.keystore
 *.jks
+keystore.properties
+android/keystore.properties
+
+# Senhas locais / segredos
+.env
+.env.*
+*.pem
+*.p12
+service-account*.json
+firebase-adminsdk*.json

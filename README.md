@@ -510,9 +510,9 @@ INTENT FILTERS (o app abre links de fora)
 
 O Android NÃO instala APK sem assinatura. Por isso foi criado:
 
-  Arquivo ... android/louvor-ibfcg.keystore
+  Arquivo ... android/louvor-ibfcg.keystore   (NÃO é versionado)
   Alias ..... louvor-ibfcg
-  Senha ..... louvor2026
+  Senha ..... definida em variável de ambiente / keystore.properties
   Algoritmo . RSA 2048 / SHA384withRSA
   Validade .. 10.000 dias (~27 anos)
   Assinatura . CN=Louvor IBFCG, OU=Ministerio de Louvor, O=IBFCG
@@ -526,29 +526,55 @@ Perdeu = precisa refazer o app do zero com outro id.
 
 COMO A ASSINATURA FICOU AUTOMÁTICA
 -----------------------------------
-Em android/app/build.gradle foi adicionado:
+A senha NUNCA fica no código. O `android/app/build.gradle` lê as
+credenciais nesta ordem:
+
+  1. variável de ambiente (CI/CD ou máquina nova)
+  2. arquivo `android/keystore.properties` (uso local, está no .gitignore)
+
+    // trecho do build.gradle
+    def valorDe = { String propriedade, String variavel ->
+        def valorEnv = System.getenv(variavel)
+        return (valorEnv != null && !valorEnv.trim().isEmpty())
+            ? valorEnv
+            : propsAssinatura.getProperty(propriedade)
+    }
 
     signingConfigs {
         release {
-            storeFile file("${project.rootDir}/louvor-ibfcg.keystore")
-            storePassword System.getenv("LOUVOR_STORE_PASSWORD") ?: 'louvor2026'
-            keyAlias     System.getenv("LOUVOR_KEY_ALIAS")     ?: 'louvor-ibfcg'
-            keyPassword  System.getenv("LOUVOR_KEY_PASSWORD")  ?: 'louvor2026'
-        }
-    }
-    buildTypes {
-        release {
-            signingConfig signingConfigs.release
-            ...
+            if (assinarRelease) {
+                storeFile keystoreCaminho
+                storePassword keystoreSenha
+                keyAlias keystoreAlias
+                keyPassword keystoreKeyPass
+            }
         }
     }
 
-As senhas podem ser sobrescritas por variável de ambiente
-(LOUVOR_STORE_PASSWORD, LOUVOR_KEY_ALIAS, LOUVOR_KEY_PASSWORD) — útil
-pra CI/CD, onde não se coloca senha no código.
+O `keystore.properties` (local, NÃO vai pro Git) tem 4 linhas:
 
-Agora `gradlew assembleRelease` já gera o APK assinado direto
-(app-release.apk), sem precisar assinar manualmente.
+    storeFile=louvor-ibfcg.keystore
+    storePassword=***
+    keyAlias=louvor-ibfcg
+    keyPassword=***
+
+Para CI/CD, use as variáveis em vez do arquivo:
+
+    LOUVOR_KEYSTORE_FILE
+    LOUVOR_STORE_PASSWORD
+    LOUVOR_KEY_ALIAS
+    LOUVOR_KEY_PASSWORD
+
+Por que assim e não a senha direto no build.gradle?
+  - código publicado não expõe credencial (aqui é repositório aberto);
+  - o build.gradle pode ir pro portfólio sem segredo;
+  - o mesmo arquivo serve pra várias máquinas sem editar o código.
+
+SE O KEystore OU AS CREDENCIAIS FALTAREM
+----------------------------------------
+O build **não quebra**: ele gera `app-release-unsigned.apk`, que serve
+para testar mas **não instala**. Basta criar o `keystore.properties`
+para voltar a gerar o `app-release.apk` assinado.
 
 
 ================================================================================
@@ -695,14 +721,19 @@ src/environments/environment.ts          Chaves do Firebase, YouTube,
 src/environments/environment.prod.ts     URLs das APIs de cifra
                                          (versão dev e produção)
 
-android/louvor-ibfcg.keystore            Senha: louvor2026
+android/louvor-ibfcg.keystore            Identidade do app (NÃO vai pro Git)
                                          Alias: louvor-ibfcg
+                                         Senha: em keystore.properties (local)
+
+android/keystore.properties              4 linhas com alias e senhas
+                                         (NÃO vai pro Git — ver .gitignore)
 
 firebase.json / firestore.rules          Regras de acesso
 database.rules.json                      Regras do Realtime DB
 .firebaserc                              Projeto padrão: louvor-ibfcg
 
-.env / variáveis de ambiente (opcional)  LOUVOR_STORE_PASSWORD,
+Variáveis de ambiente (CI / outra PC)    LOUVOR_KEYSTORE_FILE,
+                                         LOUVOR_STORE_PASSWORD,
                                          LOUVOR_KEY_ALIAS,
                                          LOUVOR_KEY_PASSWORD
 
@@ -712,8 +743,14 @@ Chave da Bíblia (API.Bible)              Fica no localStorage do
 
 ⚠ NUNCA SUBA no Git:
   - keystore (é a identidade do app)
-  - senha do keystore
+  - keystore.properties (tem as senhas)
   - service account / FIREBASE_SERVICE_ACCOUNT_*
+
+✅ ESTE REPOSITÓRIO ESTÁ LIMPO:
+  - nenhuma senha de keystore no código nem no README
+  - keystore.properties e *.keystore no .gitignore
+  - APK e build artifacts ignorados
+  - service account só nos Secrets do GitHub Actions
 
 O GitHub Actions usa o secret
 FIREBASE_SERVICE_ACCOUNT_LOUVOR_IBFCG
