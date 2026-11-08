@@ -70,3 +70,17 @@ testem.log
 Thumbs.db
 
 .vercel
+
+
+# Relatorio do projeto - so o README (texto) vai para o GitHub
+RELATORIO-DO-PROJETO.txt
+RELATORIO-DO-PROJETO.pdf
+RELATORIO-DO-PROJETO.html
+
+# APK compilado (usar release na loja, nao versionar binario)
+*.apk
+*.aab
+
+# Chave de assinatura do app - NUNCA subir
+*.keystore
+*.jks
