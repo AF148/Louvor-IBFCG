@@ -12,6 +12,7 @@ import {
 } from 'ionicons/icons';
 import { BibliaService } from '../core/biblia.service';
 import type { BibliaApiCapituloOffline, BibliaApiItem, BibliaApiLivro, BibliaApiResultadoBusca, BibliaCapitulo, BibliaLivro, BibliaVersao, BibliaVersiculo } from '../core/biblia.service';
+import { extrairVersiculos } from '../core/biblia-conteudo.util';
 
 declare global {
   interface Window {
@@ -378,7 +379,7 @@ export class BibliaPage implements OnInit {
     try {
       const resultado = await this.biblia.carregarCapituloApi(bibleId, chapterId);
       this.conteudoCapituloApi.set(resultado.content);
-      this.versiculosApi.set(this.extrairVersiculosApi(resultado.content));
+      this.versiculosApi.set(extrairVersiculos(resultado.content));
       this.titulosApi.set(this.extrairTitulosApi(resultado.content));
       this.copyrightApi.set(resultado.copyright);
       if (resultado.fumsToken) window.fums?.('trackView', resultado.fumsToken);
@@ -398,7 +399,7 @@ export class BibliaPage implements OnInit {
   /** Exibe um capítulo guardado localmente, preservando títulos e direitos autorais. */
   private aplicarCapituloApi(capitulo: Pick<BibliaApiCapituloOffline, 'content' | 'copyright'>): void {
     this.conteudoCapituloApi.set(capitulo.content);
-    this.versiculosApi.set(this.extrairVersiculosApi(capitulo.content));
+    this.versiculosApi.set(extrairVersiculos(capitulo.content));
     this.titulosApi.set(this.extrairTitulosApi(capitulo.content));
     this.copyrightApi.set(capitulo.copyright);
   }
@@ -763,36 +764,6 @@ export class BibliaPage implements OnInit {
     if (!valor || typeof valor !== 'object') return '';
     const bloco = valor as Record<string, unknown>;
     return (typeof bloco['text'] === 'string' ? bloco['text'] : '') + this.textosDoBloco(bloco['items']);
-  }
-
-  private extrairVersiculosApi(conteudo: unknown): BibliaVersiculo[] {
-    const textos = new Map<number, string>();
-    const percorrer = (valor: unknown): void => {
-      if (Array.isArray(valor)) {
-        valor.forEach(percorrer);
-        return;
-      }
-      if (!valor || typeof valor !== 'object') return;
-      const bloco = valor as Record<string, unknown>;
-      const texto = bloco['text'];
-      const atributos = bloco['attrs'] as Record<string, unknown> | undefined;
-      const referencia = atributos?.['verseId'];
-      if (typeof texto === 'string' && typeof referencia === 'string') {
-        const numero = Number(referencia.split('.').at(-1));
-        if (Number.isInteger(numero) && numero > 0) {
-          const anterior = textos.get(numero) ?? '';
-          // Algumas respostas JSON dividem o versículo em blocos sem espaço entre as palavras.
-          const separador = anterior && texto && /[\p{L}\p{N}]$/u.test(anterior) && /^[\p{L}\p{N}]/u.test(texto) ? ' ' : '';
-          textos.set(numero, `${anterior}${separador}${texto}`);
-        }
-      }
-      if (bloco['items']) percorrer(bloco['items']);
-    };
-    percorrer(conteudo);
-    return [...textos.entries()].sort(([a], [b]) => a - b).map(([numero, texto]) => ({
-      numero,
-      texto: texto.replace(/\s+/g, ' ').replace(/([,;:.!?])(?=[\p{L}\p{N}])/gu, '$1 ').trim(),
-    }));
   }
 
   private async atualizarVersoes(): Promise<void> {

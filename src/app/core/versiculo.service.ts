@@ -1,4 +1,6 @@
 import { Injectable, signal } from '@angular/core';
+import { environment } from '../../environments/environment';
+import { extrairVersiculos } from './biblia-conteudo.util';
 
 interface RespostaVersiculo {
   reference: string;
@@ -6,44 +8,50 @@ interface RespostaVersiculo {
   translation?: { name: string };
 }
 
+interface CapituloLivro {
+  id: string;
+  number: string;
+}
+
 interface LivroApi {
   id: string;
   name: string;
+  chapters: CapituloLivro[];
 }
 
-interface CapítuloApi {
-  book_id: string;
-  book: string;
-  chapter: number;
-}
-
-const BASE = 'https://bible-api.com';
-const TRADUCAO = 'almeida';
+const BASE = 'https://rest.api.bible/v1';
+const BIBLE_ID = environment.bible.ntlhId;
 const CACHE_LIVROS = 'versiculo:livros';
-const CACHE_CAPITULOS = 'versiculo:capitulos';
+const NOME_TRADUCAO = 'Nova Tradução na Linguagem de Hoje';
 
 /**
- * Versículo do dia via bible-api.com (domínio público, sem chave de API).
+ * Versículo do dia via API.Bible, versão NTLH (Nova Tradução na Linguagem
+ * de Hoje) — a única em português liberada no plano gratuito do serviço.
  *
- * A escolha é determinística a partir da data, então o mesmo dia devolve
- * sempre o mesmo versículo e o texto fica guardado para ser exibido offline.
+ * A escolha é determinística a partir da data: o mesmo dia devolve sempre o
+ * mesmo versículo, e o texto fica guardado no aparelho para aparecer offline.
  *
  * A API não oferece "versículo aleatório", e gerar a referência por conta
  * própria erra: nem todo livro tem 20 capítulos nem todo capítulo tem 25
- * versículos, o que produz 404. Por isso o serviço consulta a lista de livros
- * e de capítulos (com cache no aparelho) e só então escolhe uma referência que
- * existe de fato.
+ * versículos. Por isso o serviço consulta a lista de livros (com cache no
+ * aparelho) e só então escolhe capítulo e versículo que existem de fato.
  */
 @Injectable({ providedIn: 'root' })
-/** Fornece textos bíblicos curtos usados como versículo de destaque no aplicativo. */
+/** Fornece o versículo de destaque exibido na tela inicial do aplicativo. */
 export class VersiculoService {
   readonly carregando = signal(false);
   readonly erro = signal<string | null>(null);
   readonly versiculo = signal<RespostaVersiculo | null>(this.lerDoCache());
 
   private async buscar<T>(caminho: string): Promise<T> {
-    const res = await fetch(`${BASE}${caminho}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const res = await fetch(`${BASE}${caminho}`, {
+      headers: { 'api-key': environment.bible.apiKey, 'Content-Type': 'text/plain' },
+    });
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 403) throw new Error('a chave da API.Bible foi recusada.');
+      if (res.status === 429) throw new Error('limite de chamadas da API.Bible atingido.');
+      throw new Error(`HTTP ${res.status}`);
+    }
     return (await res.json()) as T;
   }
 
@@ -85,18 +93,13 @@ export class VersiculoService {
   private async livros(): Promise<LivroApi[]> {
     const doCache = this.lerCache<LivroApi[]>(CACHE_LIVROS);
     if (doCache?.length) return doCache;
-    const dados = await this.buscar<{ books: LivroApi[] }>(`/data/${TRADUCAO}`);
-    this.gravarCache(CACHE_LIVROS, dados.books);
-    return dados.books;
-  }
-
-  private async capitulos(livroId: string): Promise<CapítuloApi[]> {
-    const chave = `${CACHE_CAPITULOS}:${livroId}`;
-    const doCache = this.lerCache<CapítuloApi[]>(chave);
-    if (doCache?.length) return doCache;
-    const dados = await this.buscar<{ chapters: CapítuloApi[] }>(`/data/${TRADUCAO}/${livroId}`);
-    this.gravarCache(chave, dados.chapters);
-    return dados.chapters;
+    // Um único endpoint devolve os 66 livros já com a lista de capítulos.
+    const dados = await this.buscar<{ data?: LivroApi[] }>(`/bibles/${BIBLE_ID}/books?include-chapters=true`);
+    const livros = (Array.isArray(dados.data) ? dados.data : [])
+      .filter((livro) => Array.isArray(livro.chapters) && livro.chapters.length > 0);
+    if (!livros.length) throw new Error('a API não devolveu a lista de livros.');
+    this.gravarCache(CACHE_LIVROS, livros);
+    return livros;
   }
 
   async carregar(): Promise<void> {
@@ -114,25 +117,22 @@ export class VersiculoService {
     try {
       const livros = await this.livros();
       const livro = livros[semente % livros.length];
-      if (!livro) throw new Error('A API não devolveu a lista de livros.');
+      if (!livro) throw new Error('a API não devolveu a lista de livros.');
 
-      const capitulos = await this.capitulos(livro.id);
-      const capitulo = capitulos[(semente * 7) % capitulos.length];
-      if (!capitulo) throw new Error('A API não devolveu os capítulos do livro.');
+      const capitulo = livro.chapters[(semente * 7) % livro.chapters.length];
+      if (!capitulo) throw new Error(`a API não devolveu os capítulos de ${livro.name}.`);
 
-      // O capítulo vem com os versículos, então dá para escolher um que existe
-      // e ler o texto na mesma requisição.
-      const dados = await this.buscar<{ verses: { verse: number; text: string }[] }>(
-        `/data/${TRADUCAO}/${livro.id}/${capitulo.chapter}`,
+      const dados = await this.buscar<{ data?: { content?: unknown } }>(
+        `/bibles/${BIBLE_ID}/chapters/${encodeURIComponent(capitulo.id)}?content-type=json`,
       );
-      const versiculos = dados.verses;
-      if (!versiculos.length) throw new Error('O capítulo escolhido não tem versículos.');
+      const versiculos = extrairVersiculos(dados.data?.content);
+      if (!versiculos.length) throw new Error('o capítulo escolhido não tem versículos.');
 
       const escolhido = versiculos[(semente * 13) % versiculos.length];
       const limpo: RespostaVersiculo = {
-        reference: `${capitulo.book} ${capitulo.chapter}:${escolhido.verse}`,
-        text: escolhido.text.trim(),
-        translation: { name: 'João Ferreira de Almeida' },
+        reference: `${livro.name} ${capitulo.number}:${escolhido.numero}`,
+        text: escolhido.texto,
+        translation: { name: NOME_TRADUCAO },
       };
 
       this.versiculo.set(limpo);

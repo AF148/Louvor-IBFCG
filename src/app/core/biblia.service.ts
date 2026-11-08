@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { environment } from '../../environments/environment';
 
 export interface BibliaVersiculo {
   numero: number;
@@ -82,9 +83,9 @@ export interface BibliaApiResultadoBusca {
 @Injectable({ providedIn: 'root' })
 /** Guarda versões importadas localmente e concentra as chamadas autenticadas à API.Bible. */
 export class BibliaService {
-  /** Recupera a chave salva no navegador; ela não é incluída no código compilado. */
+  /** Recupera a chave salva no navegador; na falta dela, usa a chave embutida no app. */
   lerChaveApi(): string {
-    return localStorage.getItem(API_CHAVE_STORAGE) ?? '';
+    return localStorage.getItem(API_CHAVE_STORAGE) ?? environment.bible.apiKey;
   }
 
   /** Persiste ou remove a chave privada apenas no armazenamento deste navegador. */

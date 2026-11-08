@@ -20,6 +20,14 @@ export const environment = {
   youtube: {
     apiKey: 'AIzaSyCQX10cB1NyipbeQLsdnLoIXnUUWLKo-RY',
   },
+  // API.Bible (gratuita): https://scripture.api.bible
+  // A NTLH é a única tradução em português liberada no plano gratuito.
+  // A chave é do próprio projeto e fica embutida no app para o versículo
+  // do dia funcionar em qualquer aparelho, sem configuração.
+  bible: {
+    apiKey: 'om6a468I-sXfp0WqihTNL',
+    ntlhId: 'acef2bc597c450a1-01',
+  },
   // API local Cifra Club (2), servida pela pasta cifraclub-api-2/, sem Docker.
   // `fallbackUrl` é a mesma API publicada (Vercel): entra quando a local não
   // responde — no celular `localhost` não existe, e no PC com o servidor

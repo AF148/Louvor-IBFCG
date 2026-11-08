@@ -15,6 +15,14 @@ export const environment = {
   youtube: {
     apiKey: 'AIzaSyCQX10cB1NyipbeQLsdnLoIXnUUWLKo-RY',
   },
+  // API.Bible (gratuita): https://scripture.api.bible
+  // A NTLH é a única tradução em português liberada no plano gratuito.
+  // A chave é do próprio projeto e fica embutida no app para o versículo
+  // do dia funcionar em qualquer aparelho, sem configuração.
+  bible: {
+    apiKey: 'om6a468I-sXfp0WqihTNL',
+    ntlhId: 'acef2bc597c450a1-01',
+  },
   // API Node.js local para cifras. Em aparelho nativo, use o IP do computador.
   // `fallbackUrl` é a API publicada (Vercel): é ela que o celular usa, já que
   // `localhost` no aparelho aponta para o próprio telefone.
