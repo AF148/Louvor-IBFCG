@@ -183,6 +183,8 @@ export interface KitMusical {
   faixas: FaixaKit[];
   criadoEm: number;
   atualizadoEm: number;
+  /** ID do vídeo do YouTube que acompanha o kit (null = sem vídeo). */
+  videoId?: string | null;
 }
 
 export interface Aniversario {

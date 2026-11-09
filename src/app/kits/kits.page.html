@@ -153,6 +153,17 @@
           </ion-note>
         </div>
 
+        <!-- Vídeo do YouTube que acompanha o kit (quando o admin colou o link). -->
+        @if (kit.videoId; as videoId) {
+          <div class="kit-video">
+            <img [src]="thumbnail(videoId)" [alt]="kit.titulo" (click)="tocarVideo(kit)">
+            <ion-button expand="block" fill="outline" (click)="tocarVideo(kit)">
+              <ion-icon slot="start" name="videocam-outline"></ion-icon>
+              Assistir vídeo
+            </ion-button>
+          </div>
+        }
+
         <ion-list>
           @for (faixa of faixasDe(kit); track faixa.id; let i = $index) {
             <ion-item-sliding>
@@ -296,6 +307,23 @@
           </ion-button>
         }
 
+        <!-- Vídeo do YouTube do kit (opcional): fica junto com o áudio gravado. -->
+        <ion-item class="campo-video">
+          <ion-label position="stacked">Vídeo do YouTube (opcional)</ion-label>
+          <ion-input
+            [ngModel]="linkVideo()"
+            (ngModelChange)="linkVideo.set($event)"
+            name="linkVideo"
+            type="url"
+            inputmode="url"
+            placeholder="https://www.youtube.com/watch?v=..."
+          ></ion-input>
+          @if (linkVideo().trim() && !videoIdValido()) {
+            <ion-note slot="end" color="danger">link inválido</ion-note>
+          } @else if (videoIdValido()) {
+            <ion-icon slot="end" name="checkmark-circle-outline" color="success"></ion-icon>
+          }
+        </ion-item>
         @if (erroModal(); as erro) {
           <p class="gravador-erro">{{ erro }}</p>
         }
@@ -395,4 +423,7 @@
     { text: 'Excluir', role: 'destructive', handler: () => confirmarExclusaoFaixa() }
   ]"
 ></ion-alert>
+
+<!-- Player do vídeo do YouTube do kit (fica fora dos modais, como nas playlists). -->
+<app-youtube-player></app-youtube-player>
 <!-- Tela de kits vocais: gravação pelos administradores e escuta pelos membros. -->

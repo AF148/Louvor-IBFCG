@@ -1,4 +1,4 @@
-import { Component, OnDestroy, inject, computed, signal } from '@angular/core';
+import { Component, OnDestroy, ViewChild, inject, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   IonHeader, IonToolbar, IonTitle, IonContent, IonButtons, IonButton,
@@ -11,13 +11,16 @@ import {
   addOutline, trashOutline, saveOutline, closeOutline, micOutline,
   stopOutline, playCircleOutline, pauseCircleOutline, musicalNotesOutline,
   personCircleOutline, timerOutline, folderOpenOutline,
+  checkmarkCircleOutline, videocamOutline,
 } from 'ionicons/icons';
 import { StoreService } from '../core/store.service';
 import { AuthService } from '../core/auth.service';
 import { AudioService, formatarTempo } from '../core/audio.service';
 import type { Trilha } from '../core/audio.service';
 import { GravadorService, blobParaArquivo } from '../core/gravador.service';
-import type { FaixaKit, KitMusical } from '../core/models';
+import { YoutubeService, thumbnailYouTube } from '../core/youtube.service';
+import { YoutubePlayerModalComponent } from '../shared/youtube-player-modal.component';
+import type { FaixaKit, KitMusical, VideoYouTube } from '../core/models';
 
 /** Faixa gravada ainda não salva (rascunho do modal de gravação). */
 interface FaixaRascunho {
@@ -46,6 +49,7 @@ const FORM_VAZIO = { titulo: '', descricao: '' };
     IonIcon, IonList, IonItem, IonLabel, IonNote, IonSearchbar,
     IonModal, IonInput, IonTextarea, IonSpinner, IonAlert,
     IonItemSliding, IonItemOptions, IonItemOption, IonProgressBar,
+    YoutubePlayerModalComponent,
   ],
 })
 /** Lista kits vocais, grava novas faixas e controla a reprodução. */
@@ -54,6 +58,9 @@ export class KitsPage implements OnDestroy {
   readonly auth = inject(AuthService);
   readonly audio = inject(AudioService);
   readonly gravador = inject(GravadorService);
+  readonly youtube = inject(YoutubeService);
+
+  @ViewChild(YoutubePlayerModalComponent) player?: YoutubePlayerModalComponent;
 
   readonly busca = signal('');
   readonly gravacaoAberta = signal(false);
@@ -68,6 +75,8 @@ export class KitsPage implements OnDestroy {
   /** Duração medida do arquivo externo (0 quando o formato não informa). */
   readonly duracaoExterna = signal(0);
   readonly tituloFaixa = signal('');
+  /** Link colado do vídeo do YouTube que acompanha o kit (vazio = sem vídeo). */
+  readonly linkVideo = signal('');
   readonly enviando = signal(false);
   readonly erroModal = signal<string | null>(null);
   readonly kitDetalheId = signal<string | null>(null);
@@ -100,8 +109,17 @@ export class KitsPage implements OnDestroy {
 
   readonly podeSalvar = computed(() => {
     const alvo = this.kitAlvo();
-    return this.faixasRascunho().length > 0 && (!!alvo || !!this.rascunho().titulo.trim());
+    const temTitulo = !!alvo || !!this.rascunho().titulo.trim();
+    // Salva com faixa nova OU só atualizando o vídeo do kit já existente.
+    const temConteudo = this.faixasRascunho().length > 0 || !!this.linkVideo().trim();
+    return temTitulo && temConteudo;
   });
+
+  /** ID extraído do link colado; null quando o link ainda não é válido. */
+  readonly videoId = computed(() => this.youtube.extrairVideoId(this.linkVideo()));
+
+  /** Há link escrito mas ainda inválido (aviso ao lado do campo). */
+  readonly videoIdValido = computed(() => !!this.videoId());
 
   formatarTempo = formatarTempo;
 
@@ -115,6 +133,7 @@ export class KitsPage implements OnDestroy {
       addOutline, trashOutline, saveOutline, closeOutline, micOutline,
       stopOutline, playCircleOutline, pauseCircleOutline, musicalNotesOutline,
       personCircleOutline, timerOutline, folderOpenOutline,
+      checkmarkCircleOutline, videocamOutline,
     });
   }
 
@@ -130,6 +149,8 @@ export class KitsPage implements OnDestroy {
     if (!this.podeGravar()) return;
     this.rascunho.set({ ...FORM_VAZIO });
     this.kitAlvoId.set(kit?.id ?? null);
+    // Já gravado: mostra o link que o kit já tem, pra editar sem perder.
+    this.linkVideo.set(kit?.videoId ? `https://www.youtube.com/watch?v=${kit.videoId}` : '');
     this.erroModal.set(null);
     this.gravacaoAberta.set(true);
   }
@@ -142,6 +163,7 @@ export class KitsPage implements OnDestroy {
     this.erroModal.set(null);
     this.gravacaoAberta.set(false);
     this.kitAlvoId.set(null);
+    this.linkVideo.set('');
   }
 
   async iniciarGravacao(): Promise<void> {
@@ -249,11 +271,18 @@ export class KitsPage implements OnDestroy {
     const pendentes = this.faixasRascunho();
     const alvo = this.kitAlvo();
     const dados = this.rascunho();
-    if (!pendentes.length || (!alvo && !dados.titulo.trim())) return;
+    const link = this.linkVideo().trim();
+    // Nada novo: nem faixa pendente nem vídeo colado.
+    if (!pendentes.length && !link) return;
+    if (!alvo && !dados.titulo.trim()) return;
 
     this.enviando.set(true);
     this.erroModal.set(null);
     try {
+      // Link escrito mas inválido: avisa antes de gastar o envio das faixas.
+      if (link && !this.videoId()) {
+        throw new Error('O link do vídeo do YouTube não é válido. Cole o link completo.');
+      }
       const agora = Date.now();
       const kitId = alvo?.id ?? crypto.randomUUID();
       const faixasNovas: FaixaKit[] = [];
@@ -282,15 +311,23 @@ export class KitsPage implements OnDestroy {
         ...((alvo?.descricao ?? descricao) ? { descricao: alvo?.descricao ?? descricao } : {}),
         ...((alvo?.autorId ?? autorId) ? { autorId: alvo?.autorId ?? autorId } : {}),
         ...((alvo?.autorNome ?? autorNome) ? { autorNome: alvo?.autorNome ?? autorNome } : {}),
+        // Vídeo do YouTube: `null` apaga o que estava salvo (merge preserva
+        // os demais campos, então null é a forma de limpar).
+        videoId: this.videoId() ?? null,
       };
       await this.store.salvar('kits', kit);
 
       this.avisoErro.set(false);
-      this.aviso.set(
-        alvo
-          ? `${faixasNovas.length} faixa(s) acrescentada(s) ao kit "${kit.titulo}".`
-          : `Kit "${kit.titulo}" salvo com ${kit.faixas.length} faixa(s).`,
-      );
+      if (!faixasNovas.length) {
+        // Só o vídeo foi mexido: não fala em faixa.
+        this.aviso.set(`Vídeo do kit "${kit.titulo}" salvo.`);
+      } else {
+        this.aviso.set(
+          alvo
+            ? `${faixasNovas.length} faixa(s) acrescentada(s) ao kit "${kit.titulo}".`
+            : `Kit "${kit.titulo}" salvo com ${kit.faixas.length} faixa(s).`,
+        );
+      }
       this.fecharGravacao();
     } catch (err) {
       this.erroModal.set(
@@ -325,6 +362,19 @@ export class KitsPage implements OnDestroy {
   tocarKit(kit: KitMusical): void {
     const primeira = kit.faixas[0];
     if (primeira) void this.tocarFaixa(kit, primeira);
+  }
+
+  /** Abre o vídeo do YouTube do kit no player embutido do app. */
+  tocarVideo(kit: KitMusical): void {
+    const videoId = kit.videoId;
+    if (!videoId) return;
+    const video: VideoYouTube = { videoId, titulo: kit.titulo, posicao: 0 };
+    this.player?.abrir([video], 0);
+  }
+
+  /** Miniatura do vídeo servida pelo YouTube (não gasta cota da API). */
+  thumbnail(videoId: string): string {
+    return thumbnailYouTube(videoId);
   }
 
   /** Toca uma faixa pelo player global (continua ao trocar de tela). */

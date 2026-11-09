@@ -101,3 +101,28 @@
   width: 150px;
   height: 36px;
 }
+
+// Campo do link do vídeo do YouTube no modal de gravação.
+.campo-video {
+  margin-top: 12px;
+  --background: transparent;
+}
+
+// Miniatura do vídeo do YouTube no modal de detalhe do kit.
+.kit-video {
+  margin: 10px 0 4px;
+
+  img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: 10px;
+    cursor: pointer;
+    background: #000;
+  }
+
+  ion-button {
+    margin-top: 8px;
+  }
+}
