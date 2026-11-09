@@ -21,7 +21,14 @@ interface LivroApi {
 
 const BASE = 'https://rest.api.bible/v1';
 const BIBLE_ID = environment.bible.ntlhId;
-const CACHE_LIVROS = 'versiculo:livros';
+/**
+ * Versão nova do cache: a chave antiga (`versiculo:livros`) guardava a lista
+ * da bible-api.com, que não tem o campo `chapters` — ler esse formato antigo
+ * derrubava o versículo do dia com "livro.chapters is undefined".
+ */
+const CACHE_LIVROS = 'versiculo:livros:v2';
+const CACHE_LIVROS_ANTIGO = 'versiculo:livros';
+const CACHE_CAPITULOS_ANTIGO = 'versiculo:capitulos:';
 const NOME_TRADUCAO = 'Nova Tradução na Linguagem de Hoje';
 
 /**
@@ -42,6 +49,23 @@ export class VersiculoService {
   readonly carregando = signal(false);
   readonly erro = signal<string | null>(null);
   readonly versiculo = signal<RespostaVersiculo | null>(this.lerDoCache());
+
+  constructor() {
+    this.limparCacheAntigo();
+  }
+
+  /** Apaga os caches da versão anterior (bible-api.com), de formato incompatível. */
+  private limparCacheAntigo(): void {
+    try {
+      for (const chave of Object.keys(localStorage)) {
+        if (chave === CACHE_LIVROS_ANTIGO || chave.startsWith(CACHE_CAPITULOS_ANTIGO)) {
+          localStorage.removeItem(chave);
+        }
+      }
+    } catch {
+      // Sem storage acessível: o cache novo faz a validação de qualquer forma.
+    }
+  }
 
   private async buscar<T>(caminho: string): Promise<T> {
     const res = await fetch(`${BASE}${caminho}`, {
@@ -91,14 +115,41 @@ export class VersiculoService {
   }
 
   private async livros(): Promise<LivroApi[]> {
-    const doCache = this.lerCache<LivroApi[]>(CACHE_LIVROS);
-    if (doCache?.length) return doCache;
+    // Só aceita do cache a lista no formato novo (livro com capítulos).
+    // Qualquer outro formato é descartado e a lista é baixada de novo.
+    const cacheBom = this.somenteLivrosComCapitulos(this.lerCache<unknown>(CACHE_LIVROS));
+    if (cacheBom.length) return cacheBom;
     // Um único endpoint devolve os 66 livros já com a lista de capítulos.
     const dados = await this.buscar<{ data?: LivroApi[] }>(`/bibles/${BIBLE_ID}/books?include-chapters=true`);
-    const livros = (Array.isArray(dados.data) ? dados.data : [])
-      .filter((livro) => Array.isArray(livro.chapters) && livro.chapters.length > 0);
+    const livros = this.somenteLivrosComCapitulos(Array.isArray(dados.data) ? dados.data : []);
     if (!livros.length) throw new Error('a API não devolveu a lista de livros.');
     this.gravarCache(CACHE_LIVROS, livros);
+    return livros;
+  }
+
+  /** Filtra entradas sem id, sem nome ou sem capítulos (cache de outra fonte). */
+  private somenteLivrosComCapitulos(valor: unknown): LivroApi[] {
+    if (!Array.isArray(valor)) return [];
+    const livros: LivroApi[] = [];
+    for (const bruto of valor) {
+      if (!bruto || typeof bruto !== 'object') continue;
+      const livro = bruto as Partial<LivroApi> & { chapters?: unknown };
+      if (typeof livro.id !== 'string' || typeof livro.name !== 'string') continue;
+      if (!Array.isArray(livro.chapters)) continue;
+      const capituloValido = (cap: unknown): cap is CapituloLivro => {
+        if (!cap || typeof cap !== 'object') return false;
+        const c = cap as Partial<CapituloLivro>;
+        return typeof c.id === 'string' && c.id.length > 0 && c.number !== undefined && c.number !== null;
+      };
+      const capitulo: CapituloLivro[] = livro.chapters
+        .filter(capituloValido)
+        // Ignora capítulos editoriais ("intro"): o versículo do dia precisa
+        // de um capítulo com versículos numerados de verdade.
+        .filter((c) => /^\d+$/.test(String(c.number)))
+        .map((c) => ({ id: c.id, number: String(c.number) }));
+      if (!capitulo.length) continue;
+      livros.push({ id: livro.id, name: livro.name, chapters: capitulo });
+    }
     return livros;
   }
 

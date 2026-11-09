@@ -40,7 +40,6 @@ const ORDEM_LIVROS_BIBLIA = [
   '2 Pedro', '1 João', '2 João', '3 João', 'Judas', 'Apocalipse',
 ];
 const API_BIBLE_URL = 'https://rest.api.bible/v1';
-const API_CHAVE_STORAGE = 'scale-biblia-api-key';
 
 export interface BibliaApiItem {
   id: string;
@@ -83,23 +82,12 @@ export interface BibliaApiResultadoBusca {
 @Injectable({ providedIn: 'root' })
 /** Guarda versões importadas localmente e concentra as chamadas autenticadas à API.Bible. */
 export class BibliaService {
-  /** Recupera a chave salva no navegador; na falta dela, usa a chave embutida no app. */
+  /** Chave da API.Bible embutida no próprio código do app. */
   lerChaveApi(): string {
-    return localStorage.getItem(API_CHAVE_STORAGE) ?? environment.bible.apiKey;
+    return environment.bible.apiKey;
   }
 
-  /** Persiste ou remove a chave privada apenas no armazenamento deste navegador. */
-  salvarChaveApi(chave: string): void {
-    const valor = chave.trim();
-    if (valor) localStorage.setItem(API_CHAVE_STORAGE, valor);
-    else localStorage.removeItem(API_CHAVE_STORAGE);
-  }
-
-  async validarChaveApi(chave: string): Promise<number> {
-    return (await this.listarBiblesApi(chave)).length;
-  }
-
-  /** Consulta versões permitidas pela conta usando a chave informada. */
+  /** Consulta as versões liberadas para a conta (chave embutida). */
   async listarBiblesApi(chave = this.lerChaveApi()): Promise<BibliaApiItem[]> {
     const dados = await this.apiGet<{ data?: BibliaApiItem[] }>('/bibles', chave);
     return Array.isArray(dados.data) ? dados.data : [];
@@ -221,7 +209,7 @@ export class BibliaService {
 
   /** Aplica autenticação e mensagens comuns a todas as chamadas REST da API.Bible. */
   private async apiGet<T>(path: string, chave = this.lerChaveApi()): Promise<T> {
-    if (!chave.trim()) throw new Error('Informe e salve sua chave da API.Bible.');
+    if (!chave.trim()) throw new Error('Chave da API.Bible não configurada no app.');
     const resposta = await fetch(`${API_BIBLE_URL}${path}`, {
       headers: { 'api-key': chave.trim(), 'Content-Type': 'text/plain' },
     });

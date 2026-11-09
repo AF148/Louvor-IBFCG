@@ -38,11 +38,11 @@
 
   @if (opcoesAbertas()) {
     <section class="biblia-opcoes">
-      <h2>Conectar API.Bible</h2>
-      <ion-input label="Chave da API.Bible" labelPlacement="stacked" type="password" autocomplete="off" [ngModel]="chaveApi()" (ngModelChange)="chaveApi.set($event)" placeholder="Cole sua chave aqui"></ion-input>
-      <ion-button size="small" (click)="conectarApi()" [disabled]="validandoApi() || !chaveApi().trim()">
+      <h2>Bíblia online (API.Bible)</h2>
+      <ion-note class="aviso-chave">A versão é carregada pela internet, sem precisar configurar nada.</ion-note>
+      <ion-button size="small" (click)="conectarApi()" [disabled]="validandoApi()">
         @if (validandoApi()) { <ion-spinner name="crescent" slot="start"></ion-spinner> }
-        {{ validandoApi() ? 'Conectando...' : (apiConectada() ? 'Atualizar versões' : 'Salvar e conectar') }}
+        {{ validandoApi() ? 'Conectando...' : (apiConectada() ? 'Atualizar versões' : 'Conectar') }}
       </ion-button>
       <ion-button size="small" fill="outline" (click)="arquivoBiblia.click(); opcoesAbertas.set(false)" [disabled]="carregando()">
         <ion-icon slot="start" name="cloud-download-outline"></ion-icon>Importar versão JSON
@@ -59,7 +59,7 @@
           }
         </div>
       }
-      <ion-note class="aviso-chave" color="warning">A chave fica neste navegador. O acesso pela API exige internet.</ion-note>
+      <ion-note class="aviso-chave" color="warning">O acesso pela API exige internet.</ion-note>
     </section>
   }
 </ion-header>
@@ -171,7 +171,7 @@
     <section class="biblia-inicio">
       <div class="biblia-icone"><ion-icon name="book-outline"></ion-icon></div>
       <h2>Conecte a Bíblia</h2>
-      <p>Abra o menu ⋮ para configurar sua chave da API.Bible ou importar uma versão JSON autorizada.</p>
+      <p>Abra o menu ⋮ para escolher uma versão online ou importar uma versão JSON autorizada.</p>
       @if (carregando()) { <ion-spinner name="crescent"></ion-spinner> }
     </section>
   }

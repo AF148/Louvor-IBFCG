@@ -76,7 +76,6 @@ export class BibliaPage implements OnInit {
   readonly carregando = signal(false);
   readonly erro = signal<string | null>(null);
   readonly aviso = signal<string | null>(null);
-  readonly chaveApi = signal('');
   readonly validandoApi = signal(false);
   readonly apiConectada = signal(false);
   readonly modoLocal = signal(false);
@@ -142,9 +141,8 @@ export class BibliaPage implements OnInit {
   }
 
   async ngOnInit(): Promise<void> {
-    this.chaveApi.set(this.biblia.lerChaveApi());
     await this.atualizarCapitulosOffline();
-    if (this.chaveApi().trim()) await this.conectarApi();
+    await this.conectarApi();
     if (!this.apiConectada() && this.capitulosOffline().length) await this.ativarCatalogoOffline();
     await this.atualizarVersoes();
   }
@@ -174,9 +172,9 @@ export class BibliaPage implements OnInit {
     catch { this.capitulosOffline.set([]); }
   }
 
-  /** Valida a chave, salva-a localmente e carrega a primeira versão disponível. */
+  /** Conecta na API.Bible com a chave embutida no app e carrega as versões. */
   async conectarApi(): Promise<void> {
-    const chave = this.chaveApi().trim();
+    const chave = this.biblia.lerChaveApi().trim();
     if (!chave) return;
     this.validandoApi.set(true);
     this.erro.set(null);
@@ -185,11 +183,10 @@ export class BibliaPage implements OnInit {
     this.apiConectada.set(false);
     try {
       const bibles = await this.biblia.listarBiblesApi(chave);
-      this.biblia.salvarChaveApi(chave);
       this.biblesApi.set(bibles);
       this.quantidadeBibles.set(bibles.length);
       this.apiConectada.set(true);
-      const mensagem = 'Chave salva neste aparelho e validada com sucesso.';
+      const mensagem = 'Bíblia online conectada com sucesso.';
       this.aviso.set(mensagem);
       // A confirmação é temporária para não ocupar a tela de leitura.
       this.temporizadorAvisoApi = setTimeout(() => {
@@ -204,7 +201,7 @@ export class BibliaPage implements OnInit {
         ?? bibles[0];
       if (preferida && !selecaoValida) await this.selecionarBibleApi(preferida.id);
     } catch (err) {
-      this.erro.set(err instanceof Error ? err.message : 'Não foi possível validar a chave.');
+      this.erro.set(err instanceof Error ? err.message : 'Não foi possível conectar à API.Bible.');
     } finally {
       this.validandoApi.set(false);
     }

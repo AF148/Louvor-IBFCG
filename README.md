@@ -7,7 +7,7 @@
 Projeto ......... Louvor-IBFCG
 Repositório ..... https://github.com/AF148/Louvor-IBFCG
 Pacote Android .. com.igreja.scale
-Versão .......... 1.2 (versionCode 3)
+Versão .......... 1.3 (versionCode 4)
 Data do relatório  07/11/2026
 Tamanho do código  65 arquivos / 13.559 linhas em src/
                    202 arquivos / 188.279 linhas no projeto todo
@@ -152,7 +152,7 @@ Louvor-IBFCG/
 ├── firebase.json             Config do Firebase Hosting/rule
 ├── CONFIGURACAO.md           Guia de configuração do Firebase
 ├── RELATORIO-DO-PROJETO.txt  Este arquivo
-└── Louvor-IBFCG-v1.2.apk     APK pronto pra instalar
+└── Louvor-IBFCG-v1.3.apk     APK pronto pra instalar
 
 
 ================================================================================
@@ -261,9 +261,9 @@ Nº  SERVIÇO                  PARA QUÊ                       CUSTO
                              bloqueia
  7  lyrics.ovh               Letra da música                Grátis
  8  API.Bible (NTLH)         Versículo do dia               Grátis (chave
-                              (mesma chave da linha 9)       própria, grátis)
+                              (mesma chave da linha 9)       embutida)
  9  API.Bible (rest.api.bible) Bíblia completa              Grátis (chave
-                                                             própria, grátis)
+                                                             embutida)
 10  Google Fonts / Firebase  Hospedagem e fontes            Grátis (Plano
     Hosting                                              Spark)
 
@@ -433,13 +433,13 @@ PASSO 4 — Verificar a assinatura
   confere:  DN do certificado, SHA-256, SHA-1 e MD5
 
 PASSO 5 — Copiar pra raiz com nome amigável
-  destino:  C:\projetos\Louvor-IBFCG\Louvor-IBFCG-v1.2.apk  (4,15 MB)
+  destino:  C:\projetos\Louvor-IBFCG\Louvor-IBFCG-v1.3.apk  (4,15 MB)
 
 CONFIGURAÇÕES DO APP ANDROID
 ----------------------------
   applicationId / namespace ... com.igreja.scale
   appName ..................... Louvor-IBFCG
-  versionCode / versionName ... 3 / "1.2"
+  versionCode / versionName ... 4 / "1.3"
   minSdk / targetSdk / compileSdk  24 / 36 / 36
   (Android 7.0 em diante)
 
@@ -596,8 +596,8 @@ O APK novo fica em:
 
 Pra subir versão nova no mesmo app, aumente em
 android/app/build.gradle:
-    versionCode 4        (sempre cresce, nunca repete)
-    versionName "1.3"    (é o que o usuário vê)
+    versionCode 5        (sempre cresce, nunca repete)
+    versionName "1.4"    (é o que o usuário vê)
 
 Se mudou código do app (src/), SEMPRE rode o `npm run build` antes do
 `cap sync` — senão o APK fica com a versão antiga.
@@ -616,7 +616,7 @@ Desenvolvimento local:
 
 DISTRIBUIÇÃO DIRETA (o que foi feito)
   Custo: R$ 0
-  Manda o arquivo Louvor-IBFCG-v1.2.apk por WhatsApp/drive/site.
+  Manda o arquivo Louvor-IBFCG-v1.3.apk por WhatsApp/drive/site.
   Na primeira instalação o Android avisa "fonte desconhecida" — é uma
   vez só por aparelho, depois nunca mais. Não tem como remover esse
   aviso em APK fora da loja (é proteção do sistema).
@@ -644,7 +644,7 @@ OUTRAS OPÇÕES
 Firebase Hosting ............ grátis (Plano Spark)
 YouTube Data API ............ grátis (10.000 unidades/dia)
 Vercel (API de cifras) ...... grátis (plano hobby)
-API.Bible ................... grátis (chave própria)
+API.Bible ................... grátis (chave embutida no app)
 
 
 ================================================================================
@@ -740,9 +740,10 @@ Variáveis de ambiente (CI / outra PC)    LOUVOR_KEYSTORE_FILE,
                                          LOUVOR_KEY_ALIAS,
                                          LOUVOR_KEY_PASSWORD
 
-Chave da Bíblia (API.Bible)              Fica no localStorage do
-                                         aparelho, não no código
-                                         (o usuário cola a própria chave)
+Chave da Bíblia (API.Bible)              Embutida no código
+                                         (src/environments/environment*.ts);
+                                         é a chave gratuita do projeto e
+                                         dispensa configuração no aparelho
 
 ⚠ NUNCA SUBA no Git:
   - keystore (é a identidade do app)
@@ -770,7 +771,7 @@ uma API Node própria publicada na Vercel, APK assinado e gerado
 automaticamente pelo Gradle.
 
 Guarde junto com o projeto:
-  - Louvor-IBFCG-v1.2.apk   (o app pronto)
+  - Louvor-IBFCG-v1.3.apk   (o app pronto)
   - android/louvor-ibfcg.keystore  (a chave de assinatura)
 
 ================================================================================
