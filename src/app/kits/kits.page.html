@@ -66,6 +66,15 @@
               <ion-note>· {{ dataCriacao(kit.criadoEm) }}</ion-note>
             </div>
           </ion-label>
+          @if (videosDoKit(kit).length) {
+            <img
+              slot="end"
+              class="kit-card-video"
+              [src]="thumbnail(videosDoKit(kit)[0].videoId)"
+              [alt]="'Vídeo de ' + kit.titulo"
+              (click)="tocarVideo(kit, 0); $event.stopPropagation()"
+            >
+          }
           @if (faixasDe(kit).length) {
             <ion-button
               slot="end"
@@ -153,15 +162,23 @@
           </ion-note>
         </div>
 
-        <!-- Vídeo do YouTube que acompanha o kit (quando o admin colou o link). -->
-        @if (kit.videoId; as videoId) {
-          <div class="kit-video">
-            <img [src]="thumbnail(videoId)" [alt]="kit.titulo" (click)="tocarVideo(kit)">
-            <ion-button expand="block" fill="outline" (click)="tocarVideo(kit)">
-              <ion-icon slot="start" name="videocam-outline"></ion-icon>
-              Assistir vídeo
-            </ion-button>
-          </div>
+        <!-- Vídeos do YouTube do kit: lista com player, como nas playlists. -->
+        @if (videosDoKit(kit).length) {
+          <div class="divisoria">Vídeos do YouTube</div>
+          <ion-list>
+            @for (v of videosDoKit(kit); track v.videoId; let i = $index) {
+              <ion-item button class="item-video" (click)="tocarVideo(kit, i)">
+                <ion-thumbnail slot="start">
+                  <img [src]="thumbnail(v.videoId)" [alt]="v.titulo ?? 'Vídeo'" loading="lazy">
+                </ion-thumbnail>
+                <ion-label class="ion-text-wrap">
+                  <h3>{{ v.titulo ?? 'Vídeo do YouTube' }}</h3>
+                  @if (v.canal) { <p>{{ v.canal }}</p> }
+                </ion-label>
+                <ion-icon slot="end" name="play-circle-outline" color="primary"></ion-icon>
+              </ion-item>
+            }
+          </ion-list>
         }
 
         <ion-list>
@@ -263,6 +280,11 @@
             placeholder="Ex.: Músicas do culto de 02/11"
           ></ion-textarea>
         </ion-item>
+
+        <p class="dica-rascunho">
+          Dá pra salvar só com o título e ir acrescentando faixas e vídeos
+          depois — use o + do kit quando quiser continuar.
+        </p>
       }
 
       <div class="gravador">
@@ -272,6 +294,7 @@
           #arquivoExterno
           type="file"
           accept="audio/*"
+          multiple
           hidden
           (change)="escolherArquivoExterno($event)"
         >
@@ -305,27 +328,17 @@
             <ion-icon slot="start" name="folder-open-outline"></ion-icon>
             Usar arquivo já gravado
           </ion-button>
-        }
-
-        <!-- Vídeo do YouTube do kit (opcional): fica junto com o áudio gravado. -->
-        <ion-item class="campo-video">
-          <ion-label position="stacked">Vídeo do YouTube (opcional)</ion-label>
-          <ion-input
-            [ngModel]="linkVideo()"
-            (ngModelChange)="linkVideo.set($event)"
-            name="linkVideo"
-            type="url"
-            inputmode="url"
-            placeholder="https://www.youtube.com/watch?v=..."
-          ></ion-input>
-          @if (linkVideo().trim() && !videoIdValido()) {
-            <ion-note slot="end" color="danger">link inválido</ion-note>
-          } @else if (videoIdValido()) {
-            <ion-icon slot="end" name="checkmark-circle-outline" color="success"></ion-icon>
-          }
-        </ion-item>
-        @if (erroModal(); as erro) {
-          <p class="gravador-erro">{{ erro }}</p>
+          <ion-button
+            class="botao-arquivo"
+            expand="block"
+            fill="outline"
+            color="medium"
+            (click)="abrirSeletorRepertorio()"
+            [disabled]="enviando() || gravador.gravando()"
+          >
+            <ion-icon slot="start" name="musical-notes-outline"></ion-icon>
+            Escolher do repertório
+          </ion-button>
         }
 
         @if (ultimaGravacao()) {
@@ -367,12 +380,25 @@
           @for (faixa of faixasRascunho(); track faixa.id; let i = $index) {
             <ion-item>
               <ion-label class="ion-text-wrap">
-                <h3>{{ i + 1 }}. {{ faixa.titulo }}</h3>
+                <div class="linha-titulo">
+                  <span class="num">{{ i + 1 }}.</span>
+                  <ion-input
+                    [ngModel]="faixa.titulo"
+                    (ngModelChange)="renomearFaixaRascunho(faixa.id, $event)"
+                    [name]="'faixa-' + faixa.id"
+                    placeholder="Nome da música"
+                  ></ion-input>
+                </div>
                 <div class="sub-linha">
                   <ion-note>{{ formatarTempo(faixa.duracao) }}</ion-note>
+                  @if (faixa.louvorId) {
+                    <ion-note>· do repertório</ion-note>
+                  }
                 </div>
               </ion-label>
-              <audio slot="end" class="audio-rascunho" [src]="faixa.previewUrl" controls></audio>
+              @if (faixa.previewUrl) {
+                <audio slot="end" class="audio-rascunho" [src]="faixa.previewUrl" controls></audio>
+              }
               <ion-button
                 slot="end"
                 fill="clear"
@@ -387,6 +413,70 @@
         </ion-list>
       }
 
+      <!-- Vídeos do YouTube do kit: adiciona por link ou importa de playlist. -->
+      <div class="divisoria">Vídeos do kit (opcional)</div>
+      <ion-item class="campo-video">
+        <ion-input
+          [ngModel]="linkVideo()"
+          (ngModelChange)="linkVideo.set($event)"
+          name="linkVideo"
+          type="url"
+          inputmode="url"
+          label="Link do vídeo"
+          labelPlacement="stacked"
+          placeholder="https://www.youtube.com/watch?v=..."
+        ></ion-input>
+        <ion-button
+          slot="end"
+          fill="outline"
+          (click)="adicionarVideo()"
+          [disabled]="!videoIdValido()"
+        >
+          <ion-icon slot="start" name="add-outline"></ion-icon>
+          Adicionar
+        </ion-button>
+      </ion-item>
+      @if (linkVideo().trim() && !videoIdValido()) {
+        <p class="gravador-erro">O link do vídeo não é válido. Cole o link completo.</p>
+      }
+
+      @for (v of videosRascunho(); track v.videoId) {
+        <ion-item class="item-video-rascunho">
+          <ion-thumbnail slot="start">
+            <img [src]="thumbnail(v.videoId)" [alt]="v.titulo ?? 'Vídeo'" loading="lazy">
+          </ion-thumbnail>
+          <ion-label class="ion-text-wrap">
+            <h3>{{ v.titulo ?? 'Vídeo do YouTube' }}</h3>
+            @if (v.canal) { <p>{{ v.canal }}</p> }
+          </ion-label>
+          <ion-button
+            slot="end"
+            fill="clear"
+            color="danger"
+            (click)="removerVideoRascunho(v.videoId)"
+            aria-label="Remover vídeo"
+          >
+            <ion-icon slot="icon-only" name="trash-outline"></ion-icon>
+          </ion-button>
+        </ion-item>
+      }
+
+      <ion-button
+        class="botao-arquivo"
+        expand="block"
+        fill="outline"
+        color="medium"
+        (click)="abrirSeletorVideos()"
+        [disabled]="enviando()"
+      >
+        <ion-icon slot="start" name="logo-youtube"></ion-icon>
+        Importar de playlist
+      </ion-button>
+
+      @if (erroModal(); as erro) {
+        <p class="gravador-erro">{{ erro }}</p>
+      }
+
       <div class="rodape-modal">
         <ion-button fill="outline" (click)="fecharGravacao()" [disabled]="enviando()">Cancelar</ion-button>
         <ion-button (click)="salvar()" [disabled]="!podeSalvar() || enviando()">
@@ -398,6 +488,163 @@
           }
         </ion-button>
       </div>
+    </ion-content>
+  </ng-template>
+</ion-modal>
+
+<!-- Seletor de louvores do repertório (empilha sobre o modal de gravação) -->
+<ion-modal [isOpen]="seletorRepertorioAberto()" (didDismiss)="fecharSeletorRepertorio()">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-buttons slot="start">
+          <ion-button fill="clear" (click)="fecharSeletorRepertorio()" aria-label="Fechar">
+            <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+        <ion-title>Escolher do repertório</ion-title>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content>
+      <ion-searchbar
+        [value]="buscaRepertorio()"
+        (ionInput)="buscaRepertorio.set($any($event.detail.value) ?? '')"
+        placeholder="Buscar louvor"
+        debounce="200"
+      ></ion-searchbar>
+      <ion-list>
+        @for (l of louvoresRepertorio(); track l.id) {
+          <ion-item button (click)="alternarLouvor(l)">
+            <ion-label class="ion-text-wrap">
+              <h3>{{ l.titulo }}</h3>
+              @if (l.artista) { <p>{{ l.artista }}</p> }
+            </ion-label>
+            @if (l.midia?.duracaoSegundos; as dur) {
+              <ion-note slot="end">{{ formatarTempo(dur) }}</ion-note>
+            }
+            @if (louvorNoRascunho(l)) {
+              <ion-icon slot="end" name="checkmark-circle-outline" color="success"></ion-icon>
+            } @else {
+              <ion-icon slot="end" name="add-outline" color="primary"></ion-icon>
+            }
+          </ion-item>
+        } @empty {
+          <div class="vazio">
+            <ion-icon name="musical-notes-outline"></ion-icon>
+            <p>Nenhum louvor com áudio no repertório.</p>
+          </div>
+        }
+      </ion-list>
+    </ion-content>
+  </ng-template>
+</ion-modal>
+
+<!-- Seletor de vídeos de playlist para levar ao kit -->
+<ion-modal [isOpen]="seletorVideosAberto()" (didDismiss)="fecharSeletorVideos()">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-buttons slot="start">
+          <ion-button fill="clear" (click)="fecharSeletorVideos()" aria-label="Fechar">
+            <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+        <ion-title>
+          {{ playlistSelecionada() ? 'Escolher vídeos' : 'Importar de playlist' }}
+        </ion-title>
+        @if (playlistSelecionada()) {
+          <ion-buttons slot="end">
+            <ion-button (click)="adicionarVideosEscolhidos()" [disabled]="!videosEscolhidos().length">
+              Adicionar ({{ videosEscolhidos().length }})
+            </ion-button>
+          </ion-buttons>
+        }
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content class="ion-padding">
+      @if (!playlistSelecionada()) {
+        @if (playlistsComVideo().length) {
+          <div class="divisoria">Playlists do app</div>
+          <ion-list>
+            @for (p of playlistsComVideo(); track p.id) {
+              <ion-item button (click)="escolherPlaylist(p)">
+                <ion-icon slot="start" name="logo-youtube" color="danger"></ion-icon>
+                <ion-label class="ion-text-wrap">
+                  <h3>{{ p.nome }}</h3>
+                  <p>{{ p.itensYouTube?.length ?? 0 }} vídeo(s)</p>
+                </ion-label>
+                <ion-icon slot="end" name="chevron-forward-outline" color="medium"></ion-icon>
+              </ion-item>
+            }
+          </ion-list>
+        }
+
+        <div class="divisoria">Ou cole o link de uma playlist</div>
+        <ion-item class="campo-video">
+          <ion-input
+            [ngModel]="linkPlaylist()"
+            (ngModelChange)="linkPlaylist.set($event)"
+            name="linkPlaylist"
+            type="url"
+            inputmode="url"
+            label="Link da playlist"
+            labelPlacement="stacked"
+            placeholder="https://www.youtube.com/playlist?list=..."
+          ></ion-input>
+        </ion-item>
+        <ion-button
+          expand="block"
+          fill="outline"
+          (click)="carregarPlaylistPorLink()"
+          [disabled]="importandoPlaylist() || !linkPlaylist().trim()"
+        >
+          @if (importandoPlaylist()) {
+            <ion-spinner slot="start" name="crescent"></ion-spinner>
+          } @else {
+            <ion-icon slot="start" name="cloud-download-outline"></ion-icon>
+          }
+          Carregar vídeos
+        </ion-button>
+        @if (erroSeletor(); as erro) {
+          <p class="gravador-erro">{{ erro }}</p>
+        }
+      } @else if (playlistSelecionada(); as pl) {
+        <div class="divisoria">{{ pl.nome }}</div>
+        <ion-list>
+          @for (v of pl.videos; track v.videoId) {
+            <ion-item
+              class="item-video"
+              button
+              (click)="definirVideoEscolhido(v.videoId, !videosEscolhidos().includes(v.videoId))"
+            >
+              <ion-thumbnail slot="start">
+                <img [src]="thumbnail(v.videoId)" [alt]="v.titulo" loading="lazy">
+              </ion-thumbnail>
+              <ion-label class="ion-text-wrap">
+                <h3>{{ v.titulo }}</h3>
+                @if (v.canal) { <p>{{ v.canal }}</p> }
+              </ion-label>
+              <ion-checkbox
+                slot="end"
+                [checked]="videosEscolhidos().includes(v.videoId)"
+                (click)="$event.stopPropagation()"
+                (ionChange)="definirVideoEscolhido(v.videoId, $any($event.detail).checked)"
+                aria-label="Selecionar vídeo"
+              ></ion-checkbox>
+            </ion-item>
+          } @empty {
+            <div class="vazio">
+              <ion-icon name="logo-youtube"></ion-icon>
+              <p>Nenhum vídeo nesta playlist.</p>
+            </div>
+          }
+        </ion-list>
+        <ion-button expand="block" fill="outline" (click)="playlistSelecionada.set(null)">
+          Trocar playlist
+        </ion-button>
+      }
     </ion-content>
   </ng-template>
 </ion-modal>

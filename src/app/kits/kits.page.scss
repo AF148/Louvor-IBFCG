@@ -102,27 +102,69 @@
   height: 36px;
 }
 
-// Campo do link do vídeo do YouTube no modal de gravação.
+// Campo de link (vídeo do kit e link de playlist no seletor).
 .campo-video {
   margin-top: 12px;
   --background: transparent;
 }
 
-// Miniatura do vídeo do YouTube no modal de detalhe do kit.
-.kit-video {
-  margin: 10px 0 4px;
+// Miniatura do vídeo na listagem dos kits (toque = abre o player).
+.kit-card-video {
+  width: 76px;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 6px;
+  margin-inline-start: 8px;
+  background: #000;
+  cursor: pointer;
+  flex-shrink: 0;
+}
 
-  img {
-    display: block;
-    width: 100%;
-    aspect-ratio: 16 / 9;
-    object-fit: cover;
-    border-radius: 10px;
-    cursor: pointer;
-    background: #000;
+// Linha de vídeo com miniatura (detalhe do kit e seletor de playlist).
+.item-video,
+.item-video-rascunho {
+  ion-thumbnail {
+    width: 72px;
+    height: 40px;
+    border-radius: 6px;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+    }
+  }
+}
+
+.item-video-rascunho {
+  ion-thumbnail {
+    width: 68px;
+    height: 38px;
+  }
+}
+
+// Título editável da faixa no rascunho: número + campo de nome.
+.linha-titulo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  .num {
+    color: #666;
+    font-size: 0.95rem;
   }
 
-  ion-button {
-    margin-top: 8px;
+  ion-input {
+    flex: 1;
+    min-width: 0;
   }
+}
+
+// Dica de "salvar e continuar" no modal de gravação.
+.dica-rascunho {
+  margin: 4px 16px 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #666;
 }

@@ -159,14 +159,30 @@ export interface MensagemVoz {
   criadoEm: number;
 }
 
-/** Faixa (música gravada) dentro de um kit musical. */
+/** Faixa (música gravada ou referenciada) dentro de um kit musical. */
 export interface FaixaKit {
   id: string;
   titulo: string;
   /** URL do áudio (`fs://...` aponta para um arquivo em partes no Firestore). */
   url: string;
+  /** Tipo da mídia; ausente = 'mp3'. */
+  tipo?: TipoMidia;
+  /**
+   * Presente quando a faixa aponta para o áudio de um louvor do repertório:
+   * o arquivo é do repertório e NÃO é apagado junto com o kit.
+   */
+  louvorId?: string;
   duracaoSegundos?: number;
   criadoEm: number;
+}
+
+/** Referência a um vídeo do YouTube guardada dentro de um kit. */
+export interface VideoKitRef {
+  videoId: string;
+  /** Título de cortesia, preenchido ao adicionar o vídeo. */
+  titulo?: string;
+  /** Canal do vídeo, quando conhecido. */
+  canal?: string;
 }
 
 /**
@@ -183,7 +199,9 @@ export interface KitMusical {
   faixas: FaixaKit[];
   criadoEm: number;
   atualizadoEm: number;
-  /** ID do vídeo do YouTube que acompanha o kit (null = sem vídeo). */
+  /** Vídeos do YouTube que acompanham o kit, na ordem de adição. */
+  videos?: VideoKitRef[];
+  /** Legado: kit criado quando só existia um vídeo por kit (`videoId`). */
   videoId?: string | null;
 }
 
