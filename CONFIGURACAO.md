@@ -350,6 +350,29 @@ Para o e-mail 1 chegar na caixa de entrada do Gmail:
 > Quem não confirma continua logado e com tudo liberado; o Perfil apenas
 > mostra o aviso de confirmação enquanto `emailVerified` for falso.
 
+## 12. Versão web (Firebase Hosting)
+
+O mesmo app roda no navegador em **https://louvor-ibfcg.web.app** — é o
+caminho oficial para iPhone/iPad, que não instala APK.
+
+- **Deploy automático**: todo `git push` para `main` dispara o workflow
+  `.github/workflows/firebase-hosting-merge.yml`, que roda `npm ci &&
+  npm run build` (gera a pasta `www/`) e publica no Firebase Hosting
+  (secret `FIREBASE_SERVICE_ACCOUNT_LOUVOR_IBFCG` já configurado no
+  repo — os pushes já disparam esse workflow com sucesso).
+- **Deploy manual**: `firebase deploy --only hosting` (exige
+  `firebase login`).
+- O `firebase.json` aponta `hosting.public` para `www` (o output do
+  Angular) e tem rewrite de SPA (`**` → `/index.html`) para rotas
+  internas como `/kits` abrirem direto; `index.html` sai com
+  `Cache-Control: no-cache` para o deploy valer na hora.
+- **No iPhone**: abrir o endereço no Safari → Compartilhar →
+  **Adicionar à Tela de Início**. Os meta tags
+  `apple-mobile-web-app-capable`/`apple-touch-icon` (180×180, gerado do
+  `logo_IBFCG.png`) já estão no `src/index.html`.
+- Login, Firestore e Realtime DB funcionam igual na web: o login por
+  e-mail/senha não depende de domínio autorizado no Firebase Auth.
+
 ## Limitações conhecidas
 
 - **E-mail de boas-vindas personalizado**: precisa de Cloud Function

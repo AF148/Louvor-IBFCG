@@ -6,9 +6,10 @@
 
 Projeto ......... Louvor-IBFCG
 Repositório ..... https://github.com/AF148/Louvor-IBFCG
+Site (web) ...... https://louvor-ibfcg.web.app  (iPhone/iPad e navegador)
 Pacote Android .. com.igreja.scale
 Versão .......... 1.4 (versionCode 5)
-Data do relatório  07/11/2026
+Data do relatório  11/11/2026
 Tamanho do código  65 arquivos / 13.559 linhas em src/
                    202 arquivos / 188.279 linhas no projeto todo
 
@@ -56,6 +57,12 @@ Reúne, num lugar só:
 
 Funciona em 3 níveis de acesso: sem conta é só leitura bloqueada, membro
 edita repertório/playlists/perfil, administrador edita tudo.
+
+COMO ACESSAR (dois caminhos, mesmo app e mesmos dados)
+  Android ....... instala o APK Louvor-IBFCG-v1.4.apk (seção 14)
+  iPhone/iPad ... abre https://louvor-ibfcg.web.app no Safari e
+                  adiciona na tela de início (seção 14) — o iOS não
+                  instala APK, então a versão web é o caminho oficial
 
 
 ================================================================================
@@ -620,6 +627,29 @@ DISTRIBUIÇÃO DIRETA (o que foi feito)
   Na primeira instalação o Android avisa "fonte desconhecida" — é uma
   vez só por aparelho, depois nunca mais. Não tem como remover esse
   aviso em APK fora da loja (é proteção do sistema).
+
+VERSÃO WEB (iPhone/iPad, tablet e computador) — R$ 0
+  Endereço: https://louvor-ibfcg.web.app
+
+  É o MESMO app e os MESMOS dados do APK (mesmo Firebase), só que
+  roda no navegador. É o caminho oficial pro iPhone/iPad, que não
+  instala arquivo APK — não existe "instalar direto do site" no iOS
+  (só App Store, TestFlight ou conta de desenvolvedor Apple paga).
+
+  No iPhone: abrir o endereço no Safari → botão Compartilhar →
+  "Adicionar à Tela de Início". Fica com o ícone do logo e tela
+  cheia, quase igual app. Não tem atualização pra baixar: sempre
+  abre na versão mais nova.
+
+  Publicação é AUTOMÁTICA: todo git push pro main o GitHub Actions
+  builda o site (npm run build → pasta www/) e sobe no Firebase
+  Hosting. Publicação manual, se precisar:
+      firebase deploy --only hosting
+
+  Funciona igual ao APK: login, repertório, escala, playlists, kits
+  (gravando pelo microfone do navegador), bíblia, vídeos do YouTube.
+  Limite: o lembrete de escala só dispara com a página aberta —
+  pra notificação com o celular em repouso, o APK continua melhor.
 
 GOOGLE PLAY STORE
   Taxa única de cadastro ... US$ 25 (~R$ 140) — uma vez só
